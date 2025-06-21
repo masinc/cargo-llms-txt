@@ -80,26 +80,22 @@ pub fn parse_project_info(content: &str) -> Result<ProjectInfo> {
                     dep_info.version = Some(version);
                 }
                 toml::Value::Table(table) => {
-                    if let Some(version) = table.get("version") {
-                        if let toml::Value::String(v) = version {
-                            dep_info.version = Some(v.clone());
-                        }
+                    if let Some(toml::Value::String(v)) = table.get("version") {
+                        dep_info.version = Some(v.clone());
                     }
-                    if let Some(features) = table.get("features") {
-                        if let toml::Value::Array(feat_array) = features {
-                            let features_vec: Vec<String> = feat_array
-                                .iter()
-                                .filter_map(|f| {
-                                    if let toml::Value::String(s) = f {
-                                        Some(s.clone())
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .collect();
-                            if !features_vec.is_empty() {
-                                dep_info.features = Some(features_vec);
-                            }
+                    if let Some(toml::Value::Array(feat_array)) = table.get("features") {
+                        let features_vec: Vec<String> = feat_array
+                            .iter()
+                            .filter_map(|f| {
+                                if let toml::Value::String(s) = f {
+                                    Some(s.clone())
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect();
+                        if !features_vec.is_empty() {
+                            dep_info.features = Some(features_vec);
                         }
                     }
                 }

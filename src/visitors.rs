@@ -257,7 +257,7 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
                     .map(|p| {
                         match p {
                             syn::GenericParam::Type(tp) => tp.ident.to_string(),
-                            syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident.to_string()),
+                            syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident),
                             syn::GenericParam::Const(cp) => format!("const {}: {}", cp.ident, extract_type_name(&cp.ty)),
                         }
                     })
@@ -335,7 +335,7 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
                     .map(|p| {
                         match p {
                             syn::GenericParam::Type(tp) => tp.ident.to_string(),
-                            syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident.to_string()),
+                            syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident),
                             syn::GenericParam::Const(cp) => format!("const {}: {}", cp.ident, extract_type_name(&cp.ty)),
                         }
                     })
@@ -429,7 +429,7 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
                     .map(|p| {
                         match p {
                             syn::GenericParam::Type(tp) => tp.ident.to_string(),
-                            syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident.to_string()),
+                            syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident),
                             syn::GenericParam::Const(cp) => format!("const {}: {}", cp.ident, extract_type_name(&cp.ty)),
                         }
                     })
@@ -559,7 +559,7 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
                     .map(|p| {
                         match p {
                             syn::GenericParam::Type(tp) => tp.ident.to_string(),
-                            syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident.to_string()),
+                            syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident),
                             syn::GenericParam::Const(cp) => format!("const {}: {}", cp.ident, extract_type_name(&cp.ty)),
                         }
                     })
@@ -623,7 +623,7 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
                 .map(|p| {
                     match p {
                         syn::GenericParam::Type(tp) => tp.ident.to_string(),
-                        syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident.to_string()),
+                        syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident),
                         syn::GenericParam::Const(cp) => format!("const {}: {}", cp.ident, extract_type_name(&cp.ty)),
                     }
                 })
@@ -689,7 +689,7 @@ fn extract_type_name(ty: &syn::Type) -> String {
                                     .map(|arg| {
                                         match arg {
                                             syn::GenericArgument::Type(ty) => extract_type_name(ty),
-                                            syn::GenericArgument::Lifetime(lt) => format!("'{}", lt.ident.to_string()),
+                                            syn::GenericArgument::Lifetime(lt) => format!("'{}", lt.ident),
                                             syn::GenericArgument::Const(_) => "Const".to_string(),
                                             _ => "Unknown".to_string(),
                                         }
@@ -803,7 +803,7 @@ fn format_function_signature(sig: &syn::Signature, include_pub: bool, where_inde
                                                 .join("::")
                                         }
                                         syn::TypeParamBound::Lifetime(lifetime) => {
-                                            format!("'{}", lifetime.ident.to_string())
+                                            format!("'{}", lifetime.ident)
                                         }
                                         _ => "Bound".to_string(),
                                     }
@@ -814,11 +814,11 @@ fn format_function_signature(sig: &syn::Signature, include_pub: bool, where_inde
                         type_str
                     }
                     syn::GenericParam::Lifetime(lp) => {
-                        let mut lifetime_str = format!("'{}", lp.lifetime.ident.to_string());
+                        let mut lifetime_str = format!("'{}", lp.lifetime.ident);
                         if !lp.bounds.is_empty() {
                             lifetime_str.push_str(": ");
                             let bounds: Vec<String> = lp.bounds.iter()
-                                .map(|bound| format!("'{}", bound.ident.to_string()))
+                                .map(|bound| format!("'{}", bound.ident))
                                 .collect();
                             lifetime_str.push_str(&bounds.join(" + "));
                         }
@@ -893,7 +893,7 @@ fn extract_where_clause(where_clause: &syn::WhereClause) -> String {
                                         .join("::")
                                 }
                                 syn::TypeParamBound::Lifetime(lifetime) => {
-                                    format!("'{}", lifetime.ident.to_string())
+                                    format!("'{}", lifetime.ident)
                                 }
                                 _ => "Bound".to_string(),
                             }
@@ -904,10 +904,10 @@ fn extract_where_clause(where_clause: &syn::WhereClause) -> String {
                 syn::WherePredicate::Lifetime(lifetime_pred) => {
                     let lifetime = &lifetime_pred.lifetime;
                     let bounds: Vec<String> = lifetime_pred.bounds.iter()
-                        .map(|bound| format!("'{}", bound.ident.to_string()))
+                        .map(|bound| format!("'{}", bound.ident))
                         .collect();
                     if bounds.is_empty() {
-                        format!("'{}", lifetime.ident.to_string())
+                        format!("'{}", lifetime.ident)
                     } else {
                         format!("'{}: {}", lifetime.ident, bounds.join(" + "))
                     }
@@ -933,7 +933,7 @@ fn extract_path_with_generics(path: &syn::Path) -> String {
                         .map(|arg| {
                             match arg {
                                 syn::GenericArgument::Type(ty) => extract_type_name(ty),
-                                syn::GenericArgument::Lifetime(lt) => format!("'{}", lt.ident.to_string()),
+                                syn::GenericArgument::Lifetime(lt) => format!("'{}", lt.ident),
                                 syn::GenericArgument::Const(expr) => {
                                     // const式を文字列化するのは複雑なので、簡単な場合のみ対応
                                     match expr {
@@ -1054,12 +1054,12 @@ impl<'a> CompleteDocsVisitor<'a> {
                         let doc_content = doc_content.trim();
                         
                         // docsコメント内の見出しレベルを調整
-                        let adjusted_content = if doc_content.starts_with("# ") {
-                            format!("#### {}", &doc_content[2..])
-                        } else if doc_content.starts_with("## ") {
-                            format!("##### {}", &doc_content[3..])
-                        } else if doc_content.starts_with("### ") {
-                            format!("###### {}", &doc_content[4..])
+                        let adjusted_content = if let Some(stripped) = doc_content.strip_prefix("# ") {
+                            format!("#### {}", stripped)
+                        } else if let Some(stripped) = doc_content.strip_prefix("## ") {
+                            format!("##### {}", stripped)
+                        } else if let Some(stripped) = doc_content.strip_prefix("### ") {
+                            format!("###### {}", stripped)
                         } else {
                             doc_content.to_string()
                         };

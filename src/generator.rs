@@ -102,7 +102,7 @@ pub fn generate_llms_txt(project_root: &Path, project_info: &ProjectInfo) -> Res
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "rs"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "rs"))
     {
         let relative_path = entry.path().strip_prefix(project_root)?;
         let items = Vec::new();
@@ -206,7 +206,7 @@ pub fn generate_llms_full_txt(project_root: &Path, project_info: &ProjectInfo) -
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "rs"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "rs"))
     {
         let relative_path = entry.path().strip_prefix(project_root)?;
         collect_public_items_for_toc(&mut toc_items, entry.path(), relative_path)?;
