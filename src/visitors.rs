@@ -749,10 +749,7 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
         
         // トレイト実装かどうか
         if let Some((_, trait_path, _)) = &node.trait_ {
-            let trait_name = trait_path.segments.iter()
-                .map(|s| s.ident.to_string())
-                .collect::<Vec<_>>()
-                .join("::");
+            let trait_name = extract_path_with_generics(trait_path);
             
             self.content.push_str(&format!("### impl {} for {}{}\n\n", trait_name, mod_path, impl_type));
         } else {
@@ -784,10 +781,7 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
         
         // トレイト実装の場合
         if let Some((_, trait_path, _)) = &node.trait_ {
-            let trait_name = trait_path.segments.iter()
-                .map(|s| s.ident.to_string())
-                .collect::<Vec<_>>()
-                .join("::");
+            let trait_name = extract_path_with_generics(trait_path);
             impl_sig.push_str(&format!("{} for ", trait_name));
         }
         
@@ -1024,6 +1018,60 @@ fn extract_where_clause(where_clause: &syn::WhereClause) -> String {
         .collect();
     
     predicates.join(",\n    ")
+}
+
+fn extract_path_with_generics(path: &syn::Path) -> String {
+    path.segments.iter()
+        .map(|segment| {
+            let mut seg_str = segment.ident.to_string();
+            
+            // ジェネリクス引数があるかチェック
+            if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
+                if !args.args.is_empty() {
+                    seg_str.push('<');
+                    let generic_args: Vec<String> = args.args.iter()
+                        .map(|arg| {
+                            match arg {
+                                syn::GenericArgument::Type(ty) => extract_type_name(ty),
+                                syn::GenericArgument::Lifetime(lt) => lt.ident.to_string(),
+                                syn::GenericArgument::Const(expr) => {
+                                    // const式を文字列化するのは複雑なので、簡単な場合のみ対応
+                                    match expr {
+                                        syn::Expr::Lit(lit) => {
+                                            match &lit.lit {
+                                                syn::Lit::Str(s) => format!("\"{}\"", s.value()),
+                                                syn::Lit::Int(i) => i.base10_digits().to_string(),
+                                                syn::Lit::Bool(b) => b.value.to_string(),
+                                                _ => "Const".to_string(),
+                                            }
+                                        }
+                                        syn::Expr::Path(path) => {
+                                            path.path.segments.iter()
+                                                .map(|s| s.ident.to_string())
+                                                .collect::<Vec<_>>()
+                                                .join("::")
+                                        }
+                                        _ => "Const".to_string(),
+                                    }
+                                }
+                                syn::GenericArgument::AssocType(assoc_type) => {
+                                    format!("{} = {}", assoc_type.ident, extract_type_name(&assoc_type.ty))
+                                },
+                                syn::GenericArgument::AssocConst(_) => "AssocConst".to_string(),
+                                syn::GenericArgument::Constraint(_) => "Constraint".to_string(),
+                                _ => "GenericArg".to_string(),
+                            }
+                        })
+                        .collect();
+                    seg_str.push_str(&generic_args.join(", "));
+                    seg_str.push('>');
+                }
+            }
+            
+            seg_str
+        })
+        .collect::<Vec<_>>()
+        .join("::")
 }
 
 fn extract_cfg_attributes(attrs: &[syn::Attribute]) -> Vec<String> {
@@ -1374,6 +1422,35 @@ mod tests {
     }
 
     #[test]
+    fn test_extract_path_with_generics() {
+        // Test simple path without generics
+        let code = "std::fmt::Display";
+        let path: syn::Path = syn::parse_str(code).unwrap();
+        assert_eq!(extract_path_with_generics(&path), "std::fmt::Display");
+
+        // Test path with type generics
+        let code = "Vec<T>";
+        let path: syn::Path = syn::parse_str(code).unwrap();
+        assert_eq!(extract_path_with_generics(&path), "Vec<T>");
+
+        // Test path with multiple generics
+        let code = "HashMap<String, i32>";
+        let path: syn::Path = syn::parse_str(code).unwrap();
+        assert_eq!(extract_path_with_generics(&path), "HashMap<String, i32>");
+
+        // Test path with associated type
+        let code = "Iterator<Item = String>";
+        let path: syn::Path = syn::parse_str(code).unwrap();
+        let result = extract_path_with_generics(&path);
+        assert_eq!(result, "Iterator<Item = String>");
+
+        // Test nested generics
+        let code = "Option<Vec<T>>";
+        let path: syn::Path = syn::parse_str(code).unwrap();
+        assert_eq!(extract_path_with_generics(&path), "Option<Vec<T>>");
+    }
+
+    #[test]
     fn test_complete_docs_visitor_enum_with_variants() {
         let code = r#"
             /// An enum with different variant types
@@ -1435,5 +1512,37 @@ mod tests {
         assert!(content.contains("pub fn public_method"));
         assert!(content.contains("param: u32"));
         assert!(!content.contains("private_method"));
+    }
+
+    #[test]
+    fn test_complete_docs_visitor_impl_with_trait_generics() {
+        let code = r#"
+            pub struct MyStruct;
+            
+            impl<'de> serde::Deserialize<'de> for MyStruct {
+                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                where
+                    D: serde::Deserializer<'de>,
+                {
+                    Ok(MyStruct)
+                }
+            }
+        "#;
+        
+        let file: syn::File = syn::parse_str(code).unwrap();
+        let mut content = String::new();
+        
+        let mut visitor = CompleteDocsVisitor {
+            content: &mut content,
+            current_mod: Vec::new(),
+        };
+        
+        visitor.visit_file(&file);
+        
+        // Should include trait generics in the impl declaration
+        assert!(content.contains("impl serde::Deserialize"));
+        assert!(content.contains("for MyStruct"));
+        // Should show the trait with its generics
+        assert!(content.contains("Deserialize<'de>") || content.contains("Deserialize"));
     }
 }
