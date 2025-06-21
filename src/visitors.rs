@@ -214,85 +214,7 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
             // クリーンな関数シグネチャを作成
             self.content.push_str("```rust\n");
             
-            let mut sig = String::new();
-            
-            // pub fn
-            sig.push_str("pub fn ");
-            
-            // 関数名
-            sig.push_str(&node.sig.ident.to_string());
-            
-            // ジェネリクス
-            if !node.sig.generics.params.is_empty() {
-                sig.push('<');
-                let generics: Vec<String> = node.sig.generics.params.iter()
-                    .map(|p| {
-                        match p {
-                            syn::GenericParam::Type(tp) => tp.ident.to_string(),
-                            syn::GenericParam::Lifetime(lp) => lp.lifetime.to_string(),
-                            syn::GenericParam::Const(cp) => format!("const {}: {}", cp.ident, extract_type_name(&cp.ty)),
-                        }
-                    })
-                    .collect();
-                sig.push_str(&generics.join(", "));
-                sig.push('>');
-            }
-            
-            // パラメータ
-            sig.push('(');
-            let params: Vec<String> = node.sig.inputs.iter()
-                .map(|input| {
-                    match input {
-                        syn::FnArg::Receiver(recv) => {
-                            let mut param = String::new();
-                            if recv.reference.is_some() {
-                                param.push('&');
-                                if recv.mutability.is_some() {
-                                    param.push_str("mut ");
-                                }
-                            }
-                            param.push_str("self");
-                            param
-                        }
-                        syn::FnArg::Typed(pat_type) => {
-                            let param_name = extract_pattern_name(&pat_type.pat);
-                            format!("{}: {}", 
-                                param_name, 
-                                extract_type_name(&pat_type.ty))
-                        }
-                    }
-                })
-                .collect();
-            
-            if params.len() > 1 || (params.len() == 1 && !params[0].starts_with("self")) {
-                sig.push('\n');
-                for (i, param) in params.iter().enumerate() {
-                    sig.push_str("    ");
-                    sig.push_str(param);
-                    if i < params.len() - 1 {
-                        sig.push(',');
-                    }
-                    sig.push('\n');
-                }
-            } else if !params.is_empty() {
-                sig.push_str(&params.join(", "));
-            }
-            sig.push(')');
-            
-            // 戻り値型
-            if let syn::ReturnType::Type(_, ty) = &node.sig.output {
-                sig.push_str(" -> ");
-                sig.push_str(&extract_type_name(ty));
-            }
-            
-            // where句
-            if let Some(where_clause) = &node.sig.generics.where_clause {
-                if !where_clause.predicates.is_empty() {
-                    sig.push_str("\nwhere\n    ");
-                    sig.push_str(&extract_where_clause(where_clause));
-                }
-            }
-            
+            let sig = format_function_signature(&node.sig, true, "");
             self.content.push_str(&sig);
             self.content.push_str("\n```\n\n");
             
@@ -335,7 +257,7 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
                     .map(|p| {
                         match p {
                             syn::GenericParam::Type(tp) => tp.ident.to_string(),
-                            syn::GenericParam::Lifetime(lp) => lp.lifetime.to_string(),
+                            syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident.to_string()),
                             syn::GenericParam::Const(cp) => format!("const {}: {}", cp.ident, extract_type_name(&cp.ty)),
                         }
                     })
@@ -413,7 +335,7 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
                     .map(|p| {
                         match p {
                             syn::GenericParam::Type(tp) => tp.ident.to_string(),
-                            syn::GenericParam::Lifetime(lp) => lp.lifetime.to_string(),
+                            syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident.to_string()),
                             syn::GenericParam::Const(cp) => format!("const {}: {}", cp.ident, extract_type_name(&cp.ty)),
                         }
                     })
@@ -507,7 +429,7 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
                     .map(|p| {
                         match p {
                             syn::GenericParam::Type(tp) => tp.ident.to_string(),
-                            syn::GenericParam::Lifetime(lp) => lp.lifetime.to_string(),
+                            syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident.to_string()),
                             syn::GenericParam::Const(cp) => format!("const {}: {}", cp.ident, extract_type_name(&cp.ty)),
                         }
                     })
@@ -544,74 +466,7 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
             for item in &node.items {
                 match item {
                     syn::TraitItem::Fn(method) => {
-                        // 完全な関数シグネチャを構築
-                        let mut sig = String::new();
-                        
-                        // fn
-                        sig.push_str("fn ");
-                        
-                        // 関数名
-                        sig.push_str(&method.sig.ident.to_string());
-                        
-                        // ジェネリクス
-                        if !method.sig.generics.params.is_empty() {
-                            sig.push('<');
-                            let generics: Vec<String> = method.sig.generics.params.iter()
-                                .map(|p| {
-                                    match p {
-                                        syn::GenericParam::Type(tp) => tp.ident.to_string(),
-                                        syn::GenericParam::Lifetime(lp) => lp.lifetime.to_string(),
-                                        syn::GenericParam::Const(cp) => format!("const {}: {}", cp.ident, extract_type_name(&cp.ty)),
-                                    }
-                                })
-                                .collect();
-                            sig.push_str(&generics.join(", "));
-                            sig.push('>');
-                        }
-                        
-                        // パラメータ
-                        sig.push('(');
-                        let params: Vec<String> = method.sig.inputs.iter()
-                            .map(|input| {
-                                match input {
-                                    syn::FnArg::Receiver(recv) => {
-                                        let mut param = String::new();
-                                        if recv.reference.is_some() {
-                                            param.push('&');
-                                            if recv.mutability.is_some() {
-                                                param.push_str("mut ");
-                                            }
-                                        }
-                                        param.push_str("self");
-                                        param
-                                    }
-                                    syn::FnArg::Typed(pat_type) => {
-                                        let param_name = extract_pattern_name(&pat_type.pat);
-                                        format!("{}: {}", param_name, extract_type_name(&pat_type.ty))
-                                    }
-                                }
-                            })
-                            .collect();
-                        
-                        if params.len() > 1 || (params.len() == 1 && !params[0].starts_with("self")) {
-                            // 複数のパラメータがある場合は改行して表示
-                            for (i, param) in params.iter().enumerate() {
-                                if i > 0 {
-                                    sig.push_str(",\n        ");
-                                }
-                                sig.push_str(param);
-                            }
-                        } else if !params.is_empty() {
-                            sig.push_str(&params.join(", "));
-                        }
-                        sig.push(')');
-                        
-                        // 戻り値型
-                        if let syn::ReturnType::Type(_, ty) = &method.sig.output {
-                            sig.push_str(" -> ");
-                            sig.push_str(&extract_type_name(ty));
-                        }
-                        
+                        let sig = format_function_signature(&method.sig, false, "    ");
                         self.content.push_str(&format!("\n    {};", sig));
                     }
                     syn::TraitItem::Type(ty) => {
@@ -704,7 +559,7 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
                     .map(|p| {
                         match p {
                             syn::GenericParam::Type(tp) => tp.ident.to_string(),
-                            syn::GenericParam::Lifetime(lp) => lp.lifetime.to_string(),
+                            syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident.to_string()),
                             syn::GenericParam::Const(cp) => format!("const {}: {}", cp.ident, extract_type_name(&cp.ty)),
                         }
                     })
@@ -768,7 +623,7 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
                 .map(|p| {
                     match p {
                         syn::GenericParam::Type(tp) => tp.ident.to_string(),
-                        syn::GenericParam::Lifetime(lp) => lp.lifetime.to_string(),
+                        syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident.to_string()),
                         syn::GenericParam::Const(cp) => format!("const {}: {}", cp.ident, extract_type_name(&cp.ty)),
                     }
                 })
@@ -795,74 +650,7 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
             match item {
                 syn::ImplItem::Fn(method) => {
                     if matches!(method.vis, Visibility::Public(_)) {
-                        // 完全な関数シグネチャを構築
-                        let mut sig = String::new();
-                        
-                        // pub fn
-                        sig.push_str("pub fn ");
-                        
-                        // 関数名
-                        sig.push_str(&method.sig.ident.to_string());
-                        
-                        // ジェネリクス
-                        if !method.sig.generics.params.is_empty() {
-                            sig.push('<');
-                            let generics: Vec<String> = method.sig.generics.params.iter()
-                                .map(|p| {
-                                    match p {
-                                        syn::GenericParam::Type(tp) => tp.ident.to_string(),
-                                        syn::GenericParam::Lifetime(lp) => lp.lifetime.to_string(),
-                                        syn::GenericParam::Const(cp) => format!("const {}: {}", cp.ident, extract_type_name(&cp.ty)),
-                                    }
-                                })
-                                .collect();
-                            sig.push_str(&generics.join(", "));
-                            sig.push('>');
-                        }
-                        
-                        // パラメータ
-                        sig.push('(');
-                        let params: Vec<String> = method.sig.inputs.iter()
-                            .map(|input| {
-                                match input {
-                                    syn::FnArg::Receiver(recv) => {
-                                        let mut param = String::new();
-                                        if recv.reference.is_some() {
-                                            param.push('&');
-                                            if recv.mutability.is_some() {
-                                                param.push_str("mut ");
-                                            }
-                                        }
-                                        param.push_str("self");
-                                        param
-                                    }
-                                    syn::FnArg::Typed(pat_type) => {
-                                        let param_name = extract_pattern_name(&pat_type.pat);
-                                        format!("{}: {}", param_name, extract_type_name(&pat_type.ty))
-                                    }
-                                }
-                            })
-                            .collect();
-                        
-                        if params.len() > 1 || (params.len() == 1 && !params[0].starts_with("self")) {
-                            // 複数のパラメータがある場合は改行して表示
-                            for (i, param) in params.iter().enumerate() {
-                                if i > 0 {
-                                    sig.push_str(",\n        ");
-                                }
-                                sig.push_str(param);
-                            }
-                        } else if !params.is_empty() {
-                            sig.push_str(&params.join(", "));
-                        }
-                        sig.push(')');
-                        
-                        // 戻り値型
-                        if let syn::ReturnType::Type(_, ty) = &method.sig.output {
-                            sig.push_str(" -> ");
-                            sig.push_str(&extract_type_name(ty));
-                        }
-                        
+                        let sig = format_function_signature(&method.sig, true, "    ");
                         self.content.push_str(&format!("\n    {};", sig));
                     }
                 }
@@ -901,7 +689,7 @@ fn extract_type_name(ty: &syn::Type) -> String {
                                     .map(|arg| {
                                         match arg {
                                             syn::GenericArgument::Type(ty) => extract_type_name(ty),
-                                            syn::GenericArgument::Lifetime(lt) => lt.ident.to_string(),
+                                            syn::GenericArgument::Lifetime(lt) => format!("'{}", lt.ident.to_string()),
                                             syn::GenericArgument::Const(_) => "Const".to_string(),
                                             _ => "Unknown".to_string(),
                                         }
@@ -923,6 +711,11 @@ fn extract_type_name(ty: &syn::Type) -> String {
         }
         syn::Type::Reference(type_ref) => {
             let mut ref_str = "&".to_string();
+            if let Some(lifetime) = &type_ref.lifetime {
+                ref_str.push('\'');
+                ref_str.push_str(&lifetime.ident.to_string());
+                ref_str.push(' ');
+            }
             if type_ref.mutability.is_some() {
                 ref_str.push_str("mut ");
             }
@@ -977,6 +770,113 @@ fn extract_pattern_name(pat: &syn::Pat) -> String {
     }
 }
 
+fn format_function_signature(sig: &syn::Signature, include_pub: bool, where_indent: &str) -> String {
+    let mut result = String::new();
+    
+    // pub fn or fn
+    if include_pub {
+        result.push_str("pub fn ");
+    } else {
+        result.push_str("fn ");
+    }
+    
+    // 関数名
+    result.push_str(&sig.ident.to_string());
+    
+    // ジェネリクス
+    if !sig.generics.params.is_empty() {
+        result.push('<');
+        let generics: Vec<String> = sig.generics.params.iter()
+            .map(|p| {
+                match p {
+                    syn::GenericParam::Type(tp) => {
+                        let mut type_str = tp.ident.to_string();
+                        if !tp.bounds.is_empty() {
+                            type_str.push_str(": ");
+                            let bounds: Vec<String> = tp.bounds.iter()
+                                .map(|bound| {
+                                    match bound {
+                                        syn::TypeParamBound::Trait(trait_bound) => {
+                                            trait_bound.path.segments.iter()
+                                                .map(|s| s.ident.to_string())
+                                                .collect::<Vec<_>>()
+                                                .join("::")
+                                        }
+                                        syn::TypeParamBound::Lifetime(lifetime) => {
+                                            format!("'{}", lifetime.ident.to_string())
+                                        }
+                                        _ => "Bound".to_string(),
+                                    }
+                                })
+                                .collect();
+                            type_str.push_str(&bounds.join(" + "));
+                        }
+                        type_str
+                    }
+                    syn::GenericParam::Lifetime(lp) => {
+                        let mut lifetime_str = format!("'{}", lp.lifetime.ident.to_string());
+                        if !lp.bounds.is_empty() {
+                            lifetime_str.push_str(": ");
+                            let bounds: Vec<String> = lp.bounds.iter()
+                                .map(|bound| format!("'{}", bound.ident.to_string()))
+                                .collect();
+                            lifetime_str.push_str(&bounds.join(" + "));
+                        }
+                        lifetime_str
+                    }
+                    syn::GenericParam::Const(cp) => format!("const {}: {}", cp.ident, extract_type_name(&cp.ty)),
+                }
+            })
+            .collect();
+        result.push_str(&generics.join(", "));
+        result.push('>');
+    }
+    
+    // パラメータ
+    result.push('(');
+    let params: Vec<String> = sig.inputs.iter()
+        .map(|input| {
+            match input {
+                syn::FnArg::Receiver(recv) => {
+                    let mut param = String::new();
+                    if recv.reference.is_some() {
+                        param.push('&');
+                        if recv.mutability.is_some() {
+                            param.push_str("mut ");
+                        }
+                    }
+                    param.push_str("self");
+                    param
+                }
+                syn::FnArg::Typed(pat_type) => {
+                    let param_name = extract_pattern_name(&pat_type.pat);
+                    format!("{}: {}", param_name, extract_type_name(&pat_type.ty))
+                }
+            }
+        })
+        .collect();
+    
+    // パラメータを1行にまとめて表示
+    result.push_str(&params.join(", "));
+    result.push(')');
+    
+    // 戻り値型
+    if let syn::ReturnType::Type(_, ty) = &sig.output {
+        result.push_str(" -> ");
+        result.push_str(&extract_type_name(ty));
+    }
+    
+    // where句
+    if let Some(where_clause) = &sig.generics.where_clause {
+        if !where_clause.predicates.is_empty() {
+            result.push_str(&format!("\n{}where\n{}    ", where_indent, where_indent));
+            result.push_str(&extract_where_clause(where_clause));
+        }
+    }
+    
+    result
+}
+
 fn extract_where_clause(where_clause: &syn::WhereClause) -> String {
     let predicates: Vec<String> = where_clause.predicates.iter()
         .map(|predicate| {
@@ -993,7 +893,7 @@ fn extract_where_clause(where_clause: &syn::WhereClause) -> String {
                                         .join("::")
                                 }
                                 syn::TypeParamBound::Lifetime(lifetime) => {
-                                    lifetime.ident.to_string()
+                                    format!("'{}", lifetime.ident.to_string())
                                 }
                                 _ => "Bound".to_string(),
                             }
@@ -1004,12 +904,12 @@ fn extract_where_clause(where_clause: &syn::WhereClause) -> String {
                 syn::WherePredicate::Lifetime(lifetime_pred) => {
                     let lifetime = &lifetime_pred.lifetime;
                     let bounds: Vec<String> = lifetime_pred.bounds.iter()
-                        .map(|bound| bound.ident.to_string())
+                        .map(|bound| format!("'{}", bound.ident.to_string()))
                         .collect();
                     if bounds.is_empty() {
-                        lifetime.ident.to_string()
+                        format!("'{}", lifetime.ident.to_string())
                     } else {
-                        format!("{}: {}", lifetime.ident, bounds.join(" + "))
+                        format!("'{}: {}", lifetime.ident, bounds.join(" + "))
                     }
                 }
                 _ => "Where".to_string(),
@@ -1033,7 +933,7 @@ fn extract_path_with_generics(path: &syn::Path) -> String {
                         .map(|arg| {
                             match arg {
                                 syn::GenericArgument::Type(ty) => extract_type_name(ty),
-                                syn::GenericArgument::Lifetime(lt) => lt.ident.to_string(),
+                                syn::GenericArgument::Lifetime(lt) => format!("'{}", lt.ident.to_string()),
                                 syn::GenericArgument::Const(expr) => {
                                     // const式を文字列化するのは複雑なので、簡単な場合のみ対応
                                     match expr {
@@ -1544,5 +1444,163 @@ mod tests {
         assert!(content.contains("for MyStruct"));
         // Should show the trait with its generics
         assert!(content.contains("Deserialize<'de>") || content.contains("Deserialize"));
+    }
+
+    #[test]
+    fn test_format_function_signature() {
+        // Test simple function without generics
+        let sig: syn::Signature = syn::parse_str("fn simple_function(x: i32) -> bool").unwrap();
+        let result = format_function_signature(&sig, false, "");
+        assert_eq!(result, "fn simple_function(x: i32) -> bool");
+
+        // Test with pub
+        let result = format_function_signature(&sig, true, "");
+        assert_eq!(result, "pub fn simple_function(x: i32) -> bool");
+
+        // Test function with generics
+        let sig: syn::Signature = syn::parse_str("fn generic_function<T>(value: T) -> Option<T>").unwrap();
+        let result = format_function_signature(&sig, false, "");
+        assert_eq!(result, "fn generic_function<T>(value: T) -> Option<T>");
+
+        // Test function with self parameter
+        let sig: syn::Signature = syn::parse_str("fn method(&self, param: String) -> Result<(), Error>").unwrap();
+        let result = format_function_signature(&sig, false, "");
+        assert_eq!(result, "fn method(&self, param: String) -> Result<(), Error>");
+
+        // Test function with mutable self
+        let sig: syn::Signature = syn::parse_str("fn mut_method(&mut self, x: i32)").unwrap();
+        let result = format_function_signature(&sig, true, "");
+        assert_eq!(result, "pub fn mut_method(&mut self, x: i32)");
+
+        // Test function with multiple parameters
+        let sig: syn::Signature = syn::parse_str("fn multi_param(a: i32, b: &str, c: Vec<u8>) -> String").unwrap();
+        let result = format_function_signature(&sig, false, "");
+        assert_eq!(result, "fn multi_param(a: i32, b: &str, c: Vec<u8>) -> String");
+
+        // Test function with no parameters
+        let sig: syn::Signature = syn::parse_str("fn no_params() -> bool").unwrap();
+        let result = format_function_signature(&sig, false, "");
+        assert_eq!(result, "fn no_params() -> bool");
+
+        // Test function with no return type
+        let sig: syn::Signature = syn::parse_str("fn no_return(x: i32)").unwrap();
+        let result = format_function_signature(&sig, false, "");
+        assert_eq!(result, "fn no_return(x: i32)");
+    }
+
+    #[test]
+    fn test_format_function_signature_with_where_clause() {
+        // Test function with where clause
+        let sig: syn::Signature = syn::parse_str("fn with_where<T>(value: T) -> T where T: Clone").unwrap();
+        let result = format_function_signature(&sig, false, "    ");
+        assert!(result.contains("fn with_where<T>(value: T) -> T"));
+        assert!(result.contains("where"));
+        assert!(result.contains("T: Clone"));
+
+        // Test multiple where clauses
+        let sig: syn::Signature = syn::parse_str("fn complex_where<T, U>(t: T, u: U) -> (T, U) where T: Clone, U: Send").unwrap();
+        let result = format_function_signature(&sig, true, "");
+        assert!(result.contains("pub fn complex_where<T, U>(t: T, u: U) -> (T, U)"));
+        assert!(result.contains("where"));
+        assert!(result.contains("T: Clone"));
+        assert!(result.contains("U: Send"));
+
+        // Test lifetime and const generics
+        let sig: syn::Signature = syn::parse_str("fn lifetime_generic<'a, T>(data: &'a T) -> &'a T where T: 'a").unwrap();
+        let result = format_function_signature(&sig, false, "  ");
+        assert!(result.contains("fn lifetime_generic<'a, T>(data: &'a T) -> &'a T"));
+        assert!(result.contains("where"));
+        assert!(result.contains("T: 'a"));
+    }
+
+    #[test]
+    fn test_format_function_signature_multiple_lifetimes() {
+        // Test function with multiple lifetimes
+        let sig: syn::Signature = syn::parse_str("fn multiple_lifetimes<'a, 'b>(x: &'a str, y: &'b str) -> &'a str").unwrap();
+        let result = format_function_signature(&sig, false, "");
+        assert!(result.contains("fn multiple_lifetimes<'a, 'b>(x: &'a str, y: &'b str) -> &'a str"));
+
+        // Test with pub
+        let result = format_function_signature(&sig, true, "");
+        assert!(result.contains("pub fn multiple_lifetimes<'a, 'b>(x: &'a str, y: &'b str) -> &'a str"));
+
+        // Test function with multiple lifetimes and where clause
+        let sig: syn::Signature = syn::parse_str("fn complex_lifetimes<'a, 'b, T>(x: &'a T, y: &'b T) -> &'a T where 'b: 'a, T: Clone").unwrap();
+        let result = format_function_signature(&sig, false, "    ");
+        assert!(result.contains("fn complex_lifetimes<'a, 'b, T>(x: &'a T, y: &'b T) -> &'a T"));
+        assert!(result.contains("where"));
+        assert!(result.contains("'b: 'a"));
+        assert!(result.contains("T: Clone"));
+
+        // Test with mutable references and multiple lifetimes
+        let sig: syn::Signature = syn::parse_str("fn mut_multiple_lifetimes<'a, 'b>(&mut self, x: &'a mut String, y: &'b str) -> &'a String").unwrap();
+        let result = format_function_signature(&sig, true, "");
+        assert!(result.contains("pub fn mut_multiple_lifetimes<'a, 'b>(&mut self, x: &'a mut String, y: &'b str) -> &'a String"));
+
+        // Test with static lifetime
+        let sig: syn::Signature = syn::parse_str("fn with_static<'a>(x: &'a str, y: &'static str) -> &'a str").unwrap();
+        let result = format_function_signature(&sig, false, "");
+        assert!(result.contains("fn with_static<'a>(x: &'a str, y: &'static str) -> &'a str"));
+
+        // Test complex lifetime bounds in where clause
+        let sig: syn::Signature = syn::parse_str("fn lifetime_bounds<'a, 'b, 'c, T>(data: &'a T) -> &'a T where 'b: 'a, 'c: 'b, T: 'a + 'b").unwrap();
+        let result = format_function_signature(&sig, false, "  ");
+        assert!(result.contains("fn lifetime_bounds<'a, 'b, 'c, T>(data: &'a T) -> &'a T"));
+        assert!(result.contains("where"));
+        assert!(result.contains("'b: 'a"));
+        assert!(result.contains("'c: 'b"));
+        assert!(result.contains("T: 'a + 'b"));
+    }
+
+    #[test]
+    fn test_format_function_signature_lifetime_bounds_in_generics() {
+        // Test lifetime bounds in generic parameters
+        let sig: syn::Signature = syn::parse_str("fn lifetime_param_bounds<'a: 'b, 'b>(x: &'a str, y: &'b str) -> &'b str").unwrap();
+        let result = format_function_signature(&sig, false, "");
+        assert!(result.contains("fn lifetime_param_bounds"));
+        assert!(result.contains("'a: 'b"));
+        assert!(result.contains("'b"));
+        assert!(result.contains("x: &'a str, y: &'b str"));
+
+        // Test multiple lifetime bounds in generic parameters
+        let sig: syn::Signature = syn::parse_str("fn complex_lifetime_bounds<'a: 'b + 'c, 'b, 'c>(data: &'a str) -> &'a str").unwrap();
+        let result = format_function_signature(&sig, true, "");
+        assert!(result.contains("pub fn complex_lifetime_bounds"));
+        assert!(result.contains("'a: 'b + 'c"));
+        assert!(result.contains("'b"));
+        assert!(result.contains("'c"));
+
+        // Test combination of lifetime bounds in generics and where clause
+        let sig: syn::Signature = syn::parse_str("fn mixed_bounds<'a: 'b, 'b, T>(x: &'a T, y: &'b T) -> &'a T where T: Clone + 'a").unwrap();
+        let result = format_function_signature(&sig, false, "    ");
+        assert!(result.contains("fn mixed_bounds"));
+        assert!(result.contains("'a: 'b"));
+        assert!(result.contains("'b"));
+        assert!(result.contains("T"));
+        assert!(result.contains("where"));
+        assert!(result.contains("T: Clone + 'a"));
+
+        // Test static lifetime bounds
+        let sig: syn::Signature = syn::parse_str("fn static_bounds<'a: 'static>(data: &'a str) -> &'a str").unwrap();
+        let result = format_function_signature(&sig, false, "");
+        assert!(result.contains("'a: 'static"));
+    }
+
+    #[test]
+    fn test_format_function_signature_type_param_bounds() {
+        // Test type parameter bounds like <A: B, B: C, C>
+        let sig: syn::Signature = syn::parse_str("fn type_bounds<A: B, B: C, C>(a: A, b: B, c: C) -> A").unwrap();
+        let result = format_function_signature(&sig, false, "");
+        assert!(result.contains("fn type_bounds"));
+        assert!(result.contains("A: B"));
+        assert!(result.contains("B: C"));
+        assert!(result.contains("C"));
+        
+        // Test more complex type bounds
+        let sig: syn::Signature = syn::parse_str("fn complex_type_bounds<T: Clone + Send, U: T + Debug>(t: T, u: U) -> T").unwrap();
+        let result = format_function_signature(&sig, true, "");
+        assert!(result.contains("pub fn complex_type_bounds"));
+        assert!(result.contains("T: Clone + Send"));
+        assert!(result.contains("U: T + Debug"));
     }
 }
