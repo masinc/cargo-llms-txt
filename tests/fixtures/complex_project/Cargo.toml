@@ -1,0 +1,10 @@
+[package]
+name = "complex_project"
+version = "0.2.0"
+edition = "2021"
+description = "A complex test project with dependencies"
+authors = ["Complex Author <complex@example.com>"]
+license = "MIT"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }

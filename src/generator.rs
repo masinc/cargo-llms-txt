@@ -6,7 +6,7 @@ use syn::visit::Visit;
 use walkdir::WalkDir;
 
 use crate::project_info::ProjectInfo;
-use crate::visitors::{TocVisitor, SummaryVisitor, CompleteDocsVisitor};
+use crate::visitors::{TocVisitor, CompleteDocsVisitor};
 
 pub fn generate_llms_txt(project_root: &Path, project_info: &ProjectInfo) -> Result<()> {
     let mut content = String::new();
@@ -93,10 +93,10 @@ pub fn generate_llms_txt(project_root: &Path, project_info: &ProjectInfo) -> Res
         content.push_str("- [Cargo.toml](Cargo.toml): Project configuration and dependencies\n");
     }
     
-    content.push_str("\n## API Overview\n\n");
+    content.push_str("\n## Table of Contents\n\n");
     
-    // 簡潔なAPI概要を生成
-    let mut api_summary = std::collections::BTreeMap::new();
+    // TOCを生成
+    let mut toc_items = Vec::new();
     
     for entry in WalkDir::new(project_root.join("src"))
         .into_iter()
@@ -105,18 +105,37 @@ pub fn generate_llms_txt(project_root: &Path, project_info: &ProjectInfo) -> Res
         .filter(|e| e.path().extension().is_some_and(|ext| ext == "rs"))
     {
         let relative_path = entry.path().strip_prefix(project_root)?;
-        let items = Vec::new();
-        collect_public_items_for_toc(&mut vec![(relative_path.to_path_buf(), items.clone())], entry.path(), relative_path)?;
-        
-        if let Ok(summary) = generate_file_summary(entry.path()) {
-            if !summary.is_empty() {
-                api_summary.insert(relative_path.display().to_string(), summary);
+        collect_public_items_for_toc(&mut toc_items, entry.path(), relative_path)?;
+    }
+    
+    for (file_path, items) in &toc_items {
+        if !items.is_empty() {
+            content.push_str(&format!("### {}\n\n", file_path.display()));
+            for item in items {
+                content.push_str(&format!("- {}\n", item));
             }
+            content.push('\n');
         }
     }
     
-    for (file_path, summary) in api_summary {
-        content.push_str(&format!("- **{}**: {}\n", file_path, summary));
+    content.push_str("---\n\n");
+    
+    // README.mdの内容を含める
+    if project_root.join("README.md").exists() {
+        let readme_content = fs::read_to_string(project_root.join("README.md"))?;
+        let adjusted_readme = adjust_markdown_heading_levels(&readme_content, 2);
+        content.push_str("## README.md\n\n");
+        content.push_str(&adjusted_readme);
+        content.push_str("\n\n");
+    }
+    
+    // Cargo.tomlの内容を含める
+    if project_root.join("Cargo.toml").exists() {
+        let cargo_content = fs::read_to_string(project_root.join("Cargo.toml"))?;
+        content.push_str("## Cargo.toml\n\n");
+        content.push_str("```toml\n");
+        content.push_str(&cargo_content);
+        content.push_str("```\n\n");
     }
     
     fs::write(project_root.join("llms.txt"), content)?;
@@ -227,6 +246,15 @@ pub fn generate_llms_full_txt(project_root: &Path, project_info: &ProjectInfo) -
     
     content.push_str("---\n\n");
     
+    // README.mdの内容を含める
+    if project_root.join("README.md").exists() {
+        let readme_content = fs::read_to_string(project_root.join("README.md"))?;
+        let adjusted_readme = adjust_markdown_heading_levels(&readme_content, 2);
+        content.push_str("## README.md\n\n");
+        content.push_str(&adjusted_readme);
+        content.push_str("\n\n---\n\n");
+    }
+    
     // 完全なAPIドキュメントを生成（publicアイテム + docsコメント）
     for (file_path, relative_path) in file_entries {
         extract_complete_api_docs(&mut content, &file_path, &relative_path)?;
@@ -251,30 +279,31 @@ fn collect_public_items_for_toc(toc_items: &mut Vec<(PathBuf, Vec<String>)>, fil
     Ok(())
 }
 
-fn generate_file_summary(file_path: &Path) -> Result<String> {
-    let source = fs::read_to_string(file_path)?;
-    let syntax_tree = syn::parse_file(&source)?;
+
+/// Markdown見出しレベルを調整する関数
+/// base_level: 基準となる見出しレベル（例: 2 なら ## が基準）
+fn adjust_markdown_heading_levels(content: &str, base_level: usize) -> String {
+    let lines: Vec<&str> = content.lines().collect();
+    let mut result = Vec::new();
     
-    let mut public_count = 0;
-    let mut types = Vec::new();
-    
-    let mut visitor = SummaryVisitor {
-        public_count: &mut public_count,
-        types: &mut types,
-    };
-    visitor.visit_file(&syntax_tree);
-    
-    if public_count == 0 {
-        return Ok(String::new());
+    for line in lines {
+        if line.starts_with('#') {
+            // 見出し行の場合、レベルを調整
+            let heading_level = line.chars().take_while(|&c| c == '#').count();
+            if heading_level > 0 {
+                let rest = &line[heading_level..];
+                let new_level = base_level + heading_level;
+                let new_heading = format!("{}{}", "#".repeat(new_level), rest);
+                result.push(new_heading);
+            } else {
+                result.push(line.to_string());
+            }
+        } else {
+            result.push(line.to_string());
+        }
     }
     
-    let type_summary = if types.is_empty() {
-        format!("{} public items", public_count)
-    } else {
-        types.join(", ")
-    };
-    
-    Ok(type_summary)
+    result.join("\n")
 }
 
 fn extract_complete_api_docs(content: &mut String, file_path: &Path, relative_path: &Path) -> Result<()> {

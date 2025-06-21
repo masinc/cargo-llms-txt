@@ -1,0 +1,8 @@
+[package]
+name = "simple_project"
+version = "0.1.0"
+edition = "2021"
+description = "A simple test project for cargo-llms-txt"
+authors = ["Test Author <test@example.com>"]
+
+[dependencies]
