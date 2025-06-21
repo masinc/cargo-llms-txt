@@ -6,6 +6,7 @@ use std::path::Path;
 
 #[derive(Default)]
 pub struct ProjectInfo {
+    pub name: Option<String>,
     pub description: Option<String>,
     pub version: Option<String>,
     pub authors: Option<String>,
@@ -48,6 +49,7 @@ pub fn parse_project_info(content: &str) -> Result<ProjectInfo> {
     let cargo_toml: CargoToml = toml::from_str(content)?;
         
     if let Some(package) = cargo_toml.package {
+        info.name = package.name;
         info.description = package.description;
         info.version = package.version;
         info.license = package.license;
