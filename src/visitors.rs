@@ -1125,3 +1125,315 @@ impl<'a> CompleteDocsVisitor<'a> {
         self.content.push('\n');
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use syn::visit::Visit;
+
+    #[test]
+    fn test_extract_pattern_name() {
+        // Test different pattern types by constructing them manually
+        use syn::{PatIdent, PatWild};
+        
+        // Test identifier pattern
+        let ident = syn::Ident::new("x", proc_macro2::Span::call_site());
+        let pat_ident = PatIdent {
+            attrs: vec![],
+            by_ref: None,
+            mutability: None,
+            ident,
+            subpat: None,
+        };
+        let pat = syn::Pat::Ident(pat_ident);
+        assert_eq!(extract_pattern_name(&pat), "x");
+
+        // Test wildcard pattern
+        let pat_wild = PatWild {
+            attrs: vec![],
+            underscore_token: Default::default(),
+        };
+        let pat = syn::Pat::Wild(pat_wild);
+        assert_eq!(extract_pattern_name(&pat), "_");
+    }
+
+    #[test]
+    fn test_extract_type_name() {
+        // Test simple type
+        let code = "u32";
+        let ty: syn::Type = syn::parse_str(code).unwrap();
+        assert_eq!(extract_type_name(&ty), "u32");
+
+        // Test reference type
+        let code = "&str";
+        let ty: syn::Type = syn::parse_str(code).unwrap();
+        assert_eq!(extract_type_name(&ty), "&str");
+
+        // Test mutable reference type
+        let code = "&mut String";
+        let ty: syn::Type = syn::parse_str(code).unwrap();
+        assert_eq!(extract_type_name(&ty), "&mut String");
+
+        // Test generic type
+        let code = "Vec<T>";
+        let ty: syn::Type = syn::parse_str(code).unwrap();
+        assert_eq!(extract_type_name(&ty), "Vec<T>");
+
+        // Test slice type
+        let code = "[u8]";
+        let ty: syn::Type = syn::parse_str(code).unwrap();
+        assert_eq!(extract_type_name(&ty), "[u8]");
+
+        // Test array type (note: syn might parse const generics differently)
+        let code = "[u8; 32]";
+        let ty: syn::Type = syn::parse_str(code).unwrap();
+        let result = extract_type_name(&ty);
+        assert!(result.starts_with("[u8; ") && result.ends_with("]"));
+
+        // Test tuple type
+        let code = "(String, i32)";
+        let ty: syn::Type = syn::parse_str(code).unwrap();
+        assert_eq!(extract_type_name(&ty), "(String, i32)");
+    }
+
+    #[test]
+    fn test_extract_where_clause() {
+        let code = "fn test<T>() where T: Clone + Send, T: 'static {}";
+        let item: syn::ItemFn = syn::parse_str(code).unwrap();
+        
+        if let Some(where_clause) = &item.sig.generics.where_clause {
+            let result = extract_where_clause(where_clause);
+            assert!(result.contains("T: Clone + Send"));
+        }
+    }
+
+    #[test]
+    fn test_extract_cfg_attributes() {
+        let code = r#"
+            #[cfg(feature = "std")]
+            #[cfg(target_pointer_width = "64")]
+            #[cfg(unix)]
+            pub fn test() {}
+        "#;
+        let item: syn::ItemFn = syn::parse_str(code).unwrap();
+        let cfg_attrs = extract_cfg_attributes(&item.attrs);
+        
+        assert_eq!(cfg_attrs.len(), 3);
+        assert!(cfg_attrs.contains(&"feature = \"std\"".to_string()));
+        assert!(cfg_attrs.contains(&"target_pointer_width = \"64\"".to_string()));
+        assert!(cfg_attrs.contains(&"unix".to_string()));
+    }
+
+    #[test]
+    fn test_toc_visitor_function() {
+        let code = r#"
+            pub fn public_function() {}
+            fn private_function() {}
+        "#;
+        
+        let file: syn::File = syn::parse_str(code).unwrap();
+        let mut items = Vec::new();
+        let mut visitor = TocVisitor {
+            items: &mut items,
+            current_mod: Vec::new(),
+        };
+        
+        visitor.visit_file(&file);
+        
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0], "pub fn public_function");
+    }
+
+    #[test]
+    fn test_toc_visitor_struct() {
+        let code = r#"
+            pub struct PublicStruct;
+            struct PrivateStruct;
+        "#;
+        
+        let file: syn::File = syn::parse_str(code).unwrap();
+        let mut items = Vec::new();
+        let mut visitor = TocVisitor {
+            items: &mut items,
+            current_mod: Vec::new(),
+        };
+        
+        visitor.visit_file(&file);
+        
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0], "pub struct PublicStruct");
+    }
+
+    #[test]
+    fn test_toc_visitor_enum() {
+        let code = r#"
+            pub enum PublicEnum {
+                Variant1,
+                Variant2(u32),
+            }
+            enum PrivateEnum {
+                Variant,
+            }
+        "#;
+        
+        let file: syn::File = syn::parse_str(code).unwrap();
+        let mut items = Vec::new();
+        let mut visitor = TocVisitor {
+            items: &mut items,
+            current_mod: Vec::new(),
+        };
+        
+        visitor.visit_file(&file);
+        
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0], "pub enum PublicEnum");
+    }
+
+    #[test]
+    fn test_toc_visitor_with_module() {
+        let code = r#"
+            pub mod submodule {
+                pub fn function_in_module() {}
+                pub struct StructInModule;
+            }
+        "#;
+        
+        let file: syn::File = syn::parse_str(code).unwrap();
+        let mut items = Vec::new();
+        let mut visitor = TocVisitor {
+            items: &mut items,
+            current_mod: Vec::new(),
+        };
+        
+        visitor.visit_file(&file);
+        
+        assert_eq!(items.len(), 3);
+        assert_eq!(items[0], "pub mod submodule");
+        assert_eq!(items[1], "pub fn submodule::function_in_module");
+        assert_eq!(items[2], "pub struct submodule::StructInModule");
+    }
+
+    #[test]
+    fn test_summary_visitor() {
+        let code = r#"
+            /// This is a public function
+            pub fn test_function(param: u32) -> String {
+                String::new()
+            }
+            
+            /// This is a public struct
+            pub struct TestStruct {
+                pub field: i32,
+            }
+        "#;
+        
+        let file: syn::File = syn::parse_str(code).unwrap();
+        let mut public_count = 0;
+        let mut types = Vec::new();
+        
+        let mut visitor = SummaryVisitor {
+            public_count: &mut public_count,
+            types: &mut types,
+        };
+        
+        visitor.visit_file(&file);
+        
+        assert_eq!(public_count, 2);
+        assert!(types.contains(&"functions".to_string()));
+        assert!(types.contains(&"structs".to_string()));
+    }
+
+    #[test]
+    fn test_complete_docs_visitor_function_with_generics_and_where() {
+        let code = r#"
+            /// A generic function with where clause
+            pub fn generic_function<T, U>(param1: T, param2: U) -> T 
+            where 
+                T: Clone + Send,
+                U: std::fmt::Display,
+            {
+                param1
+            }
+        "#;
+        
+        let file: syn::File = syn::parse_str(code).unwrap();
+        let mut content = String::new();
+        
+        let mut visitor = CompleteDocsVisitor {
+            content: &mut content,
+            current_mod: Vec::new(),
+        };
+        
+        visitor.visit_file(&file);
+        
+        assert!(content.contains("generic_function<T, U>"));
+        assert!(content.contains("param1: T"));
+        assert!(content.contains("param2: U"));
+        assert!(content.contains("T: Clone + Send"));
+        assert!(content.contains("U: std::fmt::Display"));
+    }
+
+    #[test]
+    fn test_complete_docs_visitor_enum_with_variants() {
+        let code = r#"
+            /// An enum with different variant types
+            pub enum TestEnum {
+                /// Unit variant
+                Unit,
+                /// Tuple variant
+                Tuple(String, i32),
+                /// Struct variant  
+                Struct { name: String, value: i32 },
+                #[cfg(feature = "test")]
+                ConditionalVariant,
+            }
+        "#;
+        
+        let file: syn::File = syn::parse_str(code).unwrap();
+        let mut content = String::new();
+        
+        let mut visitor = CompleteDocsVisitor {
+            content: &mut content,
+            current_mod: Vec::new(),
+        };
+        
+        visitor.visit_file(&file);
+        
+        assert!(content.contains("pub enum TestEnum"));
+        assert!(content.contains("Unit"));
+        assert!(content.contains("Tuple(String, i32)"));
+        assert!(content.contains("Struct { name: String, value: i32 }"));
+        assert!(content.contains(r#"#[cfg(feature = "test")]"#));
+    }
+
+    #[test]
+    fn test_complete_docs_visitor_impl_block() {
+        let code = r#"
+            pub struct TestStruct;
+            
+            impl TestStruct {
+                /// A public method
+                pub fn public_method(&self, param: u32) -> String {
+                    String::new()
+                }
+                
+                fn private_method(&self) {}
+            }
+        "#;
+        
+        let file: syn::File = syn::parse_str(code).unwrap();
+        let mut content = String::new();
+        
+        let mut visitor = CompleteDocsVisitor {
+            content: &mut content,
+            current_mod: Vec::new(),
+        };
+        
+        visitor.visit_file(&file);
+        
+        assert!(content.contains("impl TestStruct"));
+        assert!(content.contains("pub fn public_method"));
+        assert!(content.contains("param: u32"));
+        assert!(!content.contains("private_method"));
+    }
+}
