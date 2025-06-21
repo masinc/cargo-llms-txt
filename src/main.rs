@@ -6,7 +6,7 @@ mod project_info;
 mod visitors;
 mod generator;
 
-use project_info::get_project_name;
+use project_info::get_project_info;
 use generator::{generate_llms_txt, generate_llms_full_txt};
 
 #[derive(Parser)]
@@ -28,14 +28,14 @@ fn main() -> Result<()> {
     
     let project_root = &args.path;
     
-    // プロジェクト名を取得
-    let project_name = get_project_name(project_root)?;
+    // プロジェクト情報を取得
+    let project_info = get_project_info(project_root)?;
     
     // llms.txt を生成
-    generate_llms_txt(project_root, &project_name)?;
+    generate_llms_txt(project_root, &project_info)?;
     
     // llms-full.txt を生成
-    generate_llms_full_txt(project_root, &project_name)?;
+    generate_llms_full_txt(project_root, &project_info)?;
     
     println!("Generated llms.txt and llms-full.txt");
     Ok(())

@@ -5,17 +5,27 @@ use std::path::{Path, PathBuf};
 use syn::visit::Visit;
 use walkdir::WalkDir;
 
-use crate::project_info::get_project_info;
+use crate::project_info::ProjectInfo;
 use crate::visitors::{TocVisitor, SummaryVisitor, CompleteDocsVisitor};
 
-pub fn generate_llms_txt(project_root: &Path, project_name: &str) -> Result<()> {
+pub fn generate_llms_txt(project_root: &Path, project_info: &ProjectInfo) -> Result<()> {
     let mut content = String::new();
+    
+    // プロジェクト名を取得（デフォルトはディレクトリ名）
+    let project_name = project_info.name.as_deref()
+        .unwrap_or_else(|| {
+            project_root.file_name()
+                .unwrap_or_default()
+                .to_str()
+                .unwrap_or("unknown")
+        });
     
     // llms.txt仕様に従ったヘッダー
     content.push_str(&format!("# {}\n\n", project_name));
     
-    // プロジェクト情報（Cargo.tomlから取得）
-    if let Ok(info) = get_project_info(project_root) {
+    // プロジェクト情報を出力
+    {
+        let info = project_info;
         if let Some(description) = &info.description {
             content.push_str(&format!("> {}\n\n", description));
         }
@@ -113,13 +123,24 @@ pub fn generate_llms_txt(project_root: &Path, project_name: &str) -> Result<()> 
     Ok(())
 }
 
-pub fn generate_llms_full_txt(project_root: &Path, project_name: &str) -> Result<()> {
+pub fn generate_llms_full_txt(project_root: &Path, project_info: &ProjectInfo) -> Result<()> {
     let mut content = String::new();
+    
+    // プロジェクト名を取得（デフォルトはディレクトリ名）
+    let project_name = project_info.name.as_deref()
+        .unwrap_or_else(|| {
+            project_root.file_name()
+                .unwrap_or_default()
+                .to_str()
+                .unwrap_or("unknown")
+        });
     
     // 仕様に従ったヘッダー
     content.push_str(&format!("# {} - Complete API Documentation\n\n", project_name));
     
-    if let Ok(info) = get_project_info(project_root) {
+    // プロジェクト情報を出力
+    {
+        let info = project_info;
         if let Some(description) = &info.description {
             content.push_str(&format!("> {}\n\n", description));
         }

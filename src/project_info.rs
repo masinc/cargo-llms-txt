@@ -133,29 +133,6 @@ pub fn get_project_info(project_root: &Path) -> Result<ProjectInfo> {
     }
 }
 
-pub fn parse_project_name(content: &str) -> Option<String> {
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if let Some(name) = trimmed.strip_prefix("name = \"").and_then(|s| s.strip_suffix('"')) {
-            return Some(name.to_string());
-        }
-    }
-    None
-}
-
-pub fn get_project_name(project_root: &Path) -> Result<String> {
-    let cargo_toml_path = project_root.join("Cargo.toml");
-    if cargo_toml_path.exists() {
-        let content = fs::read_to_string(&cargo_toml_path)?;
-        if let Some(name) = parse_project_name(&content) {
-            return Ok(name);
-        }
-    }
-    Ok(project_root.file_name()
-        .unwrap_or_default()
-        .to_string_lossy()
-        .to_string())
-}
 
 #[cfg(test)]
 mod tests {
@@ -280,47 +257,4 @@ serde = "1.0"
         assert!(result.is_err());
     }
 
-    #[test]
-    fn test_parse_project_name() {
-        let content = r#"
-[package]
-name = "my-awesome-project"
-version = "1.0.0"
-"#;
-        
-        let name = parse_project_name(content);
-        assert_eq!(name, Some("my-awesome-project".to_string()));
-    }
-
-    #[test]
-    fn test_parse_project_name_no_name() {
-        let content = r#"
-[package]
-version = "1.0.0"
-"#;
-        
-        let name = parse_project_name(content);
-        assert_eq!(name, None);
-    }
-
-    #[test]
-    fn test_parse_project_name_no_package() {
-        let content = r#"
-[dependencies]
-serde = "1.0"
-"#;
-        
-        let name = parse_project_name(content);
-        assert_eq!(name, None);
-    }
-
-    #[test]
-    fn test_parse_project_name_different_formats() {
-        // Test different quote styles and whitespace
-        let content1 = r#"name = "test-project""#;
-        assert_eq!(parse_project_name(content1), Some("test-project".to_string()));
-
-        let content2 = r#"  name = "test-project"  "#;
-        assert_eq!(parse_project_name(content2), Some("test-project".to_string()));
-    }
 }
