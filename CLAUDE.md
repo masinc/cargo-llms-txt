@@ -1,10 +1,12 @@
 # CLAUDE.md
 
-このファイルは、このリポジトリでコードを作業する際にClaude Code (claude.ai/code) にガイダンスを提供します。
+このファイルは、このリポジトリでコードを作業する際にClaude Code (claude.ai/code)
+にガイダンスを提供します。
 
 ## プロジェクト概要
 
-`cargo-llms-txt` は、Rustプロジェクトから LLM (Large Language Model) 用のテキストファイルを生成するCargoサブコマンドです。**Rustの全15種類の公開アイテムに完全対応**し、高度なコード解析とフォーマット機能を提供します。プロジェクトのAPIドキュメントを2つの形式（要約版と完全版）でMarkdownファイルとして出力します。
+`cargo-llms-txt` は、Rustプロジェクトから LLM (Large Language Model)
+用のテキストファイルを生成するCargoサブコマンドです。**Rustの全15種類の公開アイテムに完全対応**し、高度なコード解析とフォーマット機能を提供します。プロジェクトのAPIドキュメントを2つの形式（要約版と完全版）でMarkdownファイルとして出力します。
 
 ## 機能仕様
 
@@ -26,7 +28,7 @@
 ### 対応する公開アイテム（全15種類）
 
 1. **Functions** (`pub fn`) - 関数とメソッド
-2. **Structs** (`pub struct`) - 構造体  
+2. **Structs** (`pub struct`) - 構造体
 3. **Enums** (`pub enum`) - 列挙型
 4. **Traits** (`pub trait`) - トレイト
 5. **Implementations** (`pub impl`) - 実装ブロック
@@ -44,53 +46,10 @@
 ### 除外ルール
 
 ファイル/ディレクトリから除外されるもの：
+
 - target/、.git/、.gitignore
 - バイナリファイル、画像ファイル、Cargo.lock
 - .llmsignoreで指定されたファイル/ディレクトリ
-
-### 出力形式
-
-Markdown形式で出力され、以下のような構造になります：
-
-```markdown
-# プロジェクト名 [- Complete API Documentation]
-
-> プロジェクト説明
-
-**Version:** 1.0.0
-**Authors:** 作者名
-**Dependencies:** 依存関係リスト
-
-Generated: YYYY-MM-DD HH:MM:SS UTC
-Created by: [cargo-llms-txt](https://github.com/masinc/cargo-llms-txt)
-
-## [Core Documentation] / Table of Contents
-
-### src/lib.rs
-
-- pub struct MyStruct
-- pub fn my_function
-- pub use std::collections::HashMap
-- pub extern "C" fn ffi_function
-
----
-
-## README.md
-
-### プロジェクトタイトル（見出しレベル調整済み）
-
-## [Cargo.toml] / 完全なAPIドキュメント
-
-### MyStruct
-
-```rust
-pub struct MyStruct {
-    pub field: String,
-}
-```
-
-構造体の説明
-```
 
 ### 高度な機能
 
@@ -124,7 +83,7 @@ pub struct MyStruct {
 ### Visitor パターン
 
 - **TocVisitor**: Table of Contents生成用
-- **SummaryVisitor**: 統計情報収集用  
+- **SummaryVisitor**: 統計情報収集用
 - **CompleteDocsVisitor**: 完全なAPIドキュメント生成用
 
 ### ヘルパー関数
@@ -144,11 +103,11 @@ pub struct MyStruct {
 
 ## 現在の完成度
 
-✅ **完全実装済み** - Rustの全15種類の公開アイテムに対応
-✅ **包括的テスト** - 46ユニットテスト + 5統合テスト、全て成功
-✅ **高品質コード** - Clippy警告なし、適切なエラーハンドリング
-✅ **実用的フォーマット** - FFI関数、トレイトエイリアス等の最新機能対応
-✅ **ドキュメント整備** - README.md、CLAUDE.md完全更新
+✅ **完全実装済み** - Rustの全15種類の公開アイテムに対応 ✅ **包括的テスト** -
+46ユニットテスト + 5統合テスト、全て成功 ✅ **高品質コード** -
+Clippy警告なし、適切なエラーハンドリング ✅ **実用的フォーマット** -
+FFI関数、トレイトエイリアス等の最新機能対応 ✅ **ドキュメント整備** -
+README.md、CLAUDE.md完全更新
 
 ## 技術的ハイライト
 
@@ -157,3 +116,55 @@ pub struct MyStruct {
 - **型解決**: 複雑なジェネリクス型の完全な名前解決
 - **依存性注入**: 純粋関数による保守性の高い設計
 - **包括的エラーハンドリング**: anyhowによる堅牢なエラー処理
+
+## CI/CD と リリース
+
+### GitHub Actions ワークフロー
+
+- **CI ワークフロー** (`.github/workflows/ci.yml`)
+  - 複数Rustバージョン対応 (stable, beta, nightly)
+  - フォーマット・Clippy チェック
+  - クロスプラットフォームビルド (Ubuntu, Windows, macOS)
+  - 統合テスト実行
+  - 手動実行対応 (`workflow_dispatch`)
+  - 再利用可能 (`workflow_call`)
+
+- **リリースワークフロー** (`.github/workflows/release.yml`)
+  - タグプッシュ時の自動実行 (`v*`)
+  - CI ワークフローの再利用
+  - クロスプラットフォームバイナリビルド
+  - GitHub リリース自動作成
+  - crates.io 自動公開
+
+### リリース手順
+
+詳細は [@RELEASE.md](RELEASE.md) を参照。
+
+**簡単リリース:**
+
+```bash
+# 1. バージョン更新
+git commit -m "Bump version to X.Y.Z"
+
+# 2. タグ作成・プッシュ（これだけで全自動）
+git tag -a vX.Y.Z -m "Release version X.Y.Z"
+git push origin vX.Y.Z
+```
+
+**自動化内容:**
+
+- 全CIテスト実行
+- 4プラットフォーム向けバイナリビルド（Linux x86_64, Windows x86_64, macOS
+  x86_64/ARM64）
+- GitHub Release作成（バイナリアセット付き）
+- crates.io 公開
+
+**必要な設定:**
+
+- GitHub Secrets: `CARGO_REGISTRY_TOKEN` (crates.io API token)
+
+### 依存関係
+
+- **実行時**: syn, clap, walkdir, ignore, chrono, anyhow, quote, proc-macro2,
+  toml, serde
+- **開発時**: なし（標準テストフレームワーク使用）
