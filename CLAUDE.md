@@ -144,7 +144,11 @@ README.md、CLAUDE.md完全更新
 
 ```bash
 # 1. バージョン更新
+# Cargo.tomlのversion = "X.Y.Z"を編集
+cargo check  # Update Cargo.lock
+git add Cargo.toml Cargo.lock
 git commit -m "Bump version to X.Y.Z"
+git push origin main
 
 # 2. タグ作成・プッシュ（これだけで全自動）
 git tag -a vX.Y.Z -m "Release version X.Y.Z"

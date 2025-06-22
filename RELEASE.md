@@ -28,14 +28,20 @@ This document outlines the steps for releasing a new version of `cargo-llms-txt`
    version = "X.Y.Z"  # Update to new version
    ```
 
-2. **Update version references in documentation** (if any)
+2. **Update Cargo.lock**
+   ```bash
+   cargo check  # This updates Cargo.lock with new version
+   ```
+
+3. **Update version references in documentation** (if any)
    - Check README.md for hardcoded version references
    - Update installation instructions if needed
 
-3. **Commit version bump**
+4. **Commit version bump**
    ```bash
-   git add Cargo.toml
+   git add Cargo.toml Cargo.lock
    git commit -m "Bump version to X.Y.Z"
+   git push origin main
    ```
 
 ### 3. Automated Release (Recommended)
