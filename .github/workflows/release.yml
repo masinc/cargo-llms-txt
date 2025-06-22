@@ -18,8 +18,7 @@ jobs:
     needs: ci
     runs-on: ubuntu-latest
     outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-      release_id: ${{ steps.create_release.outputs.id }}
+      tag: ${{ steps.tag_version.outputs.TAG }}
     steps:
       - uses: actions/checkout@v4
       - name: Get version from tag
@@ -29,32 +28,28 @@ jobs:
           echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.tag_version.outputs.TAG }}
-          release_name: ${{ steps.tag_version.outputs.TAG }}
-          draft: false
-          prerelease: false
-          body: |
-            ## cargo-llms-txt ${{ steps.tag_version.outputs.TAG }}
+        run: |
+          gh release create ${{ steps.tag_version.outputs.TAG }} \
+            --title "${{ steps.tag_version.outputs.TAG }}" \
+            --notes "## cargo-llms-txt ${{ steps.tag_version.outputs.TAG }}
             
             ### Installation
             
-            ```bash
+            \`\`\`bash
             cargo install cargo-llms-txt
-            ```
+            \`\`\`
             
             ### Usage
             
-            ```bash
+            \`\`\`bash
             cargo llms-txt
-            ```
+            \`\`\`
             
             ### What's Changed
             
-            See the [commit history](https://github.com/masinc/cargo-llms-txt/commits/${{ steps.tag_version.outputs.TAG }}) for detailed changes.
+            See the [commit history](https://github.com/masinc/cargo-llms-txt/commits/${{ steps.tag_version.outputs.TAG }}) for detailed changes."
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-release:
     name: Build Release
@@ -104,14 +99,11 @@ jobs:
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
       - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+        run: |
+          gh release upload ${{ needs.create-release.outputs.tag }} \
+            "./target/${{ matrix.target }}/release/${{ matrix.artifact_name }}#${{ matrix.asset_name }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
-          asset_name: ${{ matrix.asset_name }}
-          asset_content_type: application/octet-stream
 
   publish-crates:
     name: Publish to crates.io
