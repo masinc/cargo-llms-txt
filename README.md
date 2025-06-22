@@ -1,9 +1,10 @@
 # cargo-llms-txt
 
-A Cargo subcommand that generates `llms.txt` and `llms-full.txt` files from Rust projects for use with Large Language Models (LLMs).
+A comprehensive Cargo subcommand that generates `llms.txt` and `llms-full.txt` files from Rust projects for use with Large Language Models (LLMs). Supports all 15 types of Rust public items with advanced code analysis and formatting.
 
 ## Features
 
+- **Complete Rust Item Coverage**: Supports all 15 types of Rust public items
 - **Comprehensive API Documentation**: Extracts public APIs, documentation comments, and code signatures
 - **Dual Output Formats**: 
   - `llms.txt`: Concise overview with table of contents
@@ -14,6 +15,7 @@ A Cargo subcommand that generates `llms.txt` and `llms-full.txt` files from Rust
   - Full type name resolution for generics and complex types
   - Detailed enum variant fields (Named, Unnamed, Unit)
   - CFG attribute parsing for conditional compilation
+  - FFI function detection with proper extern block formatting
 - **Project Metadata**: Extracts version, authors, license, dependencies, and features from `Cargo.toml`
 
 ## Installation
@@ -86,14 +88,38 @@ where
     X: Into<f64>
 ```
 
-### Enum with CFG Attributes
+### FFI Functions with Proper Formatting
 ```rust
-#[derive(Clone, Debug)]
-pub enum IndexVec {
-    U32(Vec<u32>),
-    #[cfg(target_pointer_width = "64")]
-    U64(Vec<u64>),
+// External function declaration
+extern "C" {
+    pub fn external_function(x: i32) -> i32;
 }
+
+// Exported function with attributes
+#[no_mangle]
+pub extern "C" fn exported_function(x: i32) -> i32
+```
+
+### Trait Alias with Where Clause
+```rust
+pub trait SendSync<T> = Send + Sync + Clone
+where
+    T: std::fmt::Display;
+```
+
+### Union with Field Information
+```rust
+#[repr(C)]
+pub union DataUnion {
+    pub int_val: i32,
+    pub float_val: f32,
+}
+```
+
+### Re-exports and Use Declarations
+```rust
+pub use std::collections::HashMap;
+pub use std::vec::Vec as SimpleVec;
 ```
 
 ## Technical Details
@@ -106,15 +132,29 @@ This tool uses:
 
 ### Supported Rust Constructs
 
-- Functions with complex signatures
-- Structs with named, unnamed, and unit fields  
-- Enums with all variant types
-- Traits and implementations
-- Constants and statics
-- Modules and visibility
+**All 15 types of Rust public items:**
+
+1. **Functions** (`pub fn`) - Complex signatures with generics and where clauses
+2. **Structs** (`pub struct`) - Named, unnamed, and unit fields with attributes
+3. **Enums** (`pub enum`) - All variant types with detailed field information
+4. **Traits** (`pub trait`) - With associated types and lifetime parameters
+5. **Implementations** (`pub impl`) - Both inherent and trait implementations
+6. **Constants** (`pub const`) - With type information and values
+7. **Static Variables** (`pub static`) - Including mutable statics
+8. **Type Aliases** (`pub type`) - With generic parameters and where clauses
+9. **Modules** (`pub mod`) - With nested structure support
+10. **Re-exports** (`pub use`) - Including path aliases and glob imports
+11. **Macros** (`pub macro_rules!`) - Macro definitions with documentation
+12. **External Crates** (`pub extern crate`) - Crate re-exports
+13. **FFI Functions** (`pub extern "C" fn`) - With proper extern block formatting
+14. **Unions** (`pub union`) - With field information and attributes
+15. **Trait Aliases** (`pub trait Alias = ...`) - Trait alias definitions
+
+**Additional features:**
 - Generic parameters and where clauses
 - CFG attributes and conditional compilation
-- Documentation comments
+- Documentation comments and examples
+- Proper indentation and code formatting
 
 ## Contributing
 
