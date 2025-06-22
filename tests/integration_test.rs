@@ -32,6 +32,10 @@ fn test_basic_llms_txt_generation() {
     assert!(content.contains("pub struct SimpleStruct"), "SimpleStruct not found in TOC");
     assert!(content.contains("pub enum SimpleEnum"), "SimpleEnum not found in TOC");
     assert!(content.contains("pub trait SimpleTrait"), "SimpleTrait not found in TOC");
+    assert!(content.contains("pub const SIMPLE_CONSTANT"), "SIMPLE_CONSTANT not found in TOC");
+    assert!(content.contains("pub static SIMPLE_STATIC"), "SIMPLE_STATIC not found in TOC");
+    assert!(content.contains("pub type SimpleResult"), "SimpleResult not found in TOC");
+    assert!(content.contains("pub mod simple_module"), "simple_module not found in TOC");
     assert!(content.contains("## README.md"), "README.md section not found");
     assert!(content.contains("## Cargo.toml"), "Cargo.toml section not found");
     assert!(content.contains("```toml"), "TOML code block not found");

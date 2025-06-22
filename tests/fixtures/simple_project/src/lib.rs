@@ -48,3 +48,23 @@ impl SimpleTrait for SimpleStruct {
 pub fn simple_function(input: &str) -> String {
     format!("Hello, {}!", input)
 }
+
+/// A public constant
+pub const SIMPLE_CONSTANT: i32 = 42;
+
+/// A public static variable
+pub static SIMPLE_STATIC: &str = "Hello, World!";
+
+/// A public type alias
+pub type SimpleResult<T> = Result<T, String>;
+
+/// A public module
+pub mod simple_module {
+    /// A function inside the module
+    pub fn module_function() -> &'static str {
+        "Module function"
+    }
+    
+    /// A constant in the module
+    pub const MODULE_CONSTANT: usize = 100;
+}
