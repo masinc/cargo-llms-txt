@@ -104,7 +104,8 @@ jobs:
       - name: Upload Release Asset
         run: |
           gh release upload ${{ needs.create-release.outputs.tag }} \
-            "./target/${{ matrix.target }}/release/${{ matrix.artifact_name }}#${{ matrix.asset_name }}"
+            "./target/${{ matrix.target }}/release/${{ matrix.artifact_name }}" \
+            --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
