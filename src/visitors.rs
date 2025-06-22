@@ -1,4 +1,4 @@
-use syn::{visit::Visit, ItemFn, ItemMod, ItemStruct, ItemEnum, ItemTrait, ItemConst, ItemStatic, ItemType, ItemImpl, Visibility};
+use syn::{visit::Visit, ItemFn, ItemMod, ItemStruct, ItemEnum, ItemTrait, ItemConst, ItemStatic, ItemType, ItemImpl, ItemUse, ItemMacro, ItemExternCrate, ItemForeignMod, ItemUnion, ItemTraitAlias, Visibility};
 
 pub struct TocVisitor<'a> {
     pub items: &'a mut Vec<String>,
@@ -132,6 +132,79 @@ impl<'a> Visit<'_> for TocVisitor<'a> {
             self.items.push(format!("impl {}{}", mod_path, impl_type));
         }
     }
+    
+    fn visit_item_use(&mut self, node: &ItemUse) {
+        if matches!(node.vis, Visibility::Public(_)) {
+            let mod_path = if self.current_mod.is_empty() {
+                String::new()
+            } else {
+                format!("{}::", self.current_mod.join("::"))
+            };
+            let use_tree = format_use_tree(&node.tree);
+            self.items.push(format!("pub use {}{}", mod_path, use_tree));
+        }
+    }
+    
+    fn visit_item_macro(&mut self, node: &ItemMacro) {
+        // macro_rules! マクロの場合
+        if let Some(ident) = &node.ident {
+            let mod_path = if self.current_mod.is_empty() {
+                String::new()
+            } else {
+                format!("{}::", self.current_mod.join("::"))
+            };
+            self.items.push(format!("{}{}!", mod_path, ident));
+        }
+    }
+    
+    fn visit_item_extern_crate(&mut self, node: &ItemExternCrate) {
+        if matches!(node.vis, Visibility::Public(_)) {
+            let mod_path = if self.current_mod.is_empty() {
+                String::new()
+            } else {
+                format!("{}::", self.current_mod.join("::"))
+            };
+            self.items.push(format!("pub extern crate {}{}", mod_path, node.ident));
+        }
+    }
+    
+    fn visit_item_foreign_mod(&mut self, node: &ItemForeignMod) {
+        for item in &node.items {
+            if let syn::ForeignItem::Fn(foreign_fn) = item {
+                if matches!(foreign_fn.vis, Visibility::Public(_)) {
+                    let mod_path = if self.current_mod.is_empty() {
+                        String::new()
+                    } else {
+                        format!("{}::", self.current_mod.join("::"))
+                    };
+                    let abi = node.abi.name.as_ref().map(|lit| lit.value()).unwrap_or("C".to_string());
+                    self.items.push(format!("pub extern \"{}\" fn {}{}", abi, mod_path, foreign_fn.sig.ident));
+                }
+            }
+        }
+    }
+    
+    fn visit_item_union(&mut self, node: &ItemUnion) {
+        if matches!(node.vis, Visibility::Public(_)) {
+            let mod_path = if self.current_mod.is_empty() {
+                String::new()
+            } else {
+                format!("{}::", self.current_mod.join("::"))
+            };
+            self.items.push(format!("pub union {}{}", mod_path, node.ident));
+        }
+    }
+    
+    fn visit_item_trait_alias(&mut self, node: &ItemTraitAlias) {
+        if matches!(node.vis, Visibility::Public(_)) {
+            let mod_path = if self.current_mod.is_empty() {
+                String::new()
+            } else {
+                format!("{}::", self.current_mod.join("::"))
+            };
+            self.items.push(format!("pub trait {}{}", mod_path, node.ident));
+        }
+    }
 }
 
 pub struct SummaryVisitor<'a> {
@@ -193,6 +266,52 @@ impl<'a> Visit<'_> for SummaryVisitor<'a> {
         *self.public_count += 1;
         self.types.push("implementations".to_string());
     }
+    
+    fn visit_item_use(&mut self, node: &ItemUse) {
+        if matches!(node.vis, Visibility::Public(_)) {
+            *self.public_count += 1;
+            self.types.push("re-exports".to_string());
+        }
+    }
+    
+    fn visit_item_macro(&mut self, node: &ItemMacro) {
+        if node.ident.is_some() {
+            *self.public_count += 1;
+            self.types.push("macros".to_string());
+        }
+    }
+    
+    fn visit_item_extern_crate(&mut self, node: &ItemExternCrate) {
+        if matches!(node.vis, Visibility::Public(_)) {
+            *self.public_count += 1;
+            self.types.push("extern crates".to_string());
+        }
+    }
+    
+    fn visit_item_foreign_mod(&mut self, node: &ItemForeignMod) {
+        for item in &node.items {
+            if let syn::ForeignItem::Fn(foreign_fn) = item {
+                if matches!(foreign_fn.vis, Visibility::Public(_)) {
+                    *self.public_count += 1;
+                    self.types.push("foreign functions".to_string());
+                }
+            }
+        }
+    }
+    
+    fn visit_item_union(&mut self, node: &ItemUnion) {
+        if matches!(node.vis, Visibility::Public(_)) {
+            *self.public_count += 1;
+            self.types.push("unions".to_string());
+        }
+    }
+    
+    fn visit_item_trait_alias(&mut self, node: &ItemTraitAlias) {
+        if matches!(node.vis, Visibility::Public(_)) {
+            *self.public_count += 1;
+            self.types.push("trait aliases".to_string());
+        }
+    }
 }
 
 pub struct CompleteDocsVisitor<'a> {
@@ -214,8 +333,31 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
             // クリーンな関数シグネチャを作成
             self.content.push_str("```rust\n");
             
-            let sig = format_function_signature(&node.sig, true, "");
-            self.content.push_str(&sig);
+            // Check if this is an extern "C" function
+            let is_extern_c = node.sig.abi.as_ref()
+                .and_then(|abi| abi.name.as_ref())
+                .map(|lit| lit.value() == "C")
+                .unwrap_or(false);
+                
+            if is_extern_c {
+                // Format as #[no_mangle] pub extern "C" fn ...
+                let has_no_mangle = node.attrs.iter().any(|attr| {
+                    attr.path().is_ident("no_mangle")
+                });
+                
+                if has_no_mangle {
+                    self.content.push_str("#[no_mangle]\n");
+                }
+                
+                let sig = format_function_signature(&node.sig, true, "");
+                // Replace "pub fn" with "pub extern \"C\" fn"
+                let extern_sig = sig.replace("pub fn", "pub extern \"C\" fn");
+                self.content.push_str(&extern_sig);
+            } else {
+                let sig = format_function_signature(&node.sig, true, "");
+                self.content.push_str(&sig);
+            }
+            
             self.content.push_str("\n```\n\n");
             
             // docsコメントを抽出
@@ -673,6 +815,183 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
         // impl ブロックのdocsコメントがあれば抽出
         self.extract_docs_for_item(&node.attrs);
     }
+    
+    fn visit_item_use(&mut self, node: &ItemUse) {
+        if matches!(node.vis, Visibility::Public(_)) {
+            let use_tree = format_use_tree(&node.tree);
+            
+            self.content.push_str(&format!("### {}\n\n", use_tree));
+            self.content.push_str("```rust\n");
+            self.content.push_str(&format!("pub use {};\n", use_tree));
+            self.content.push_str("```\n\n");
+            
+            self.extract_docs_for_item(&node.attrs);
+        }
+    }
+    
+    fn visit_item_macro(&mut self, node: &ItemMacro) {
+        if let Some(ident) = &node.ident {
+            self.content.push_str(&format!("### {}!\n\n", ident));
+            self.content.push_str("```rust\n");
+            self.content.push_str(&format!("macro_rules! {} {{\n    // macro definition\n}}\n", ident));
+            self.content.push_str("```\n\n");
+            
+            self.extract_docs_for_item(&node.attrs);
+        }
+    }
+    
+    fn visit_item_extern_crate(&mut self, node: &ItemExternCrate) {
+        if matches!(node.vis, Visibility::Public(_)) {
+            self.content.push_str(&format!("### extern crate {}\n\n", node.ident));
+            self.content.push_str("```rust\n");
+            self.content.push_str(&format!("pub extern crate {};\n", node.ident));
+            self.content.push_str("```\n\n");
+            
+            self.extract_docs_for_item(&node.attrs);
+        }
+    }
+    
+    fn visit_item_foreign_mod(&mut self, node: &ItemForeignMod) {
+        for item in &node.items {
+            if let syn::ForeignItem::Fn(foreign_fn) = item {
+                if matches!(foreign_fn.vis, Visibility::Public(_)) {
+                    let abi = node.abi.name.as_ref().map(|lit| lit.value()).unwrap_or("C".to_string());
+                    
+                    self.content.push_str(&format!("### {}\n\n", foreign_fn.sig.ident));
+                    self.content.push_str("```rust\n");
+                    
+                    // Format as extern "ABI" { pub fn ... }
+                    self.content.push_str(&format!("extern \"{}\" {{\n", abi));
+                    let sig = format_function_signature(&foreign_fn.sig, true, "");
+                    self.content.push_str(&format!("    {};\n", sig));
+                    self.content.push_str("}\n");
+                    self.content.push_str("```\n\n");
+                    
+                    self.extract_docs_for_item(&foreign_fn.attrs);
+                }
+            }
+        }
+    }
+    
+    fn visit_item_union(&mut self, node: &ItemUnion) {
+        if matches!(node.vis, Visibility::Public(_)) {
+            self.content.push_str(&format!("### {}\n\n", node.ident));
+            self.content.push_str("```rust\n");
+            
+            // Extract and format attributes
+            let attrs = extract_cfg_attributes(&node.attrs);
+            if !attrs.is_empty() {
+                self.content.push_str(&format!("#[{}]\n", attrs.join(", ")));
+            }
+            
+            // Union header with generics
+            let mut union_def = format!("pub union {}", node.ident);
+            if !node.generics.params.is_empty() {
+                let generics = format_generic_params_simple(&node.generics.params);
+                union_def.push_str(&format!("<{}>", generics));
+            }
+            
+            self.content.push_str(&format!("{} {{\n", union_def));
+            
+            // Union fields
+            for field in &node.fields.named {
+                if let Some(ident) = &field.ident {
+                    let type_str = extract_type_name(&field.ty);
+                    self.content.push_str(&format!("    pub {}: {},\n", ident, type_str));
+                }
+            }
+            
+            self.content.push_str("}\n```\n\n");
+            
+            self.extract_docs_for_item(&node.attrs);
+        }
+    }
+    
+    fn visit_item_trait_alias(&mut self, node: &ItemTraitAlias) {
+        if matches!(node.vis, Visibility::Public(_)) {
+            self.content.push_str(&format!("### {}\n\n", node.ident));
+            self.content.push_str("```rust\n");
+            
+            // Trait alias with generics
+            let mut trait_alias = format!("pub trait {}", node.ident);
+            if !node.generics.params.is_empty() {
+                let generics = format_generic_params_simple(&node.generics.params);
+                trait_alias.push_str(&format!("<{}>", generics));
+            }
+            
+            // Format bounds
+            let bounds = format_trait_bounds(&node.bounds);
+            trait_alias.push_str(&format!(" = {}", bounds));
+            
+            // Add where clause if present
+            if let Some(where_clause) = &node.generics.where_clause {
+                let where_str = extract_where_clause(where_clause);
+                if !where_str.is_empty() {
+                    trait_alias.push_str(&format!("\nwhere\n    {}", where_str));
+                }
+            }
+            
+            self.content.push_str(&format!("{};\n", trait_alias));
+            self.content.push_str("```\n\n");
+            
+            self.extract_docs_for_item(&node.attrs);
+        }
+    }
+}
+
+// Helper function for formatting trait bounds
+fn format_trait_bounds(bounds: &syn::punctuated::Punctuated<syn::TypeParamBound, syn::token::Plus>) -> String {
+    bounds.iter()
+        .map(|bound| {
+            match bound {
+                syn::TypeParamBound::Trait(trait_bound) => {
+                    trait_bound.path.segments.iter()
+                        .map(|segment| segment.ident.to_string())
+                        .collect::<Vec<_>>()
+                        .join("::")
+                }
+                syn::TypeParamBound::Lifetime(lifetime) => {
+                    format!("'{}", lifetime.ident)
+                }
+                _ => "Unknown".to_string(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" + ")
+}
+
+// Helper function for formatting use trees
+fn format_use_tree(tree: &syn::UseTree) -> String {
+    match tree {
+        syn::UseTree::Path(path) => {
+            format!("{}::{}", path.ident, format_use_tree(&path.tree))
+        }
+        syn::UseTree::Name(name) => name.ident.to_string(),
+        syn::UseTree::Rename(rename) => {
+            format!("{} as {}", rename.ident, rename.rename)
+        }
+        syn::UseTree::Glob(_) => "*".to_string(),
+        syn::UseTree::Group(group) => {
+            let items: Vec<String> = group.items.iter()
+                .map(format_use_tree)
+                .collect();
+            format!("{{{}}}", items.join(", "))
+        }
+    }
+}
+
+// Helper function for simple generic parameter formatting
+fn format_generic_params_simple(params: &syn::punctuated::Punctuated<syn::GenericParam, syn::token::Comma>) -> String {
+    params.iter()
+        .map(|param| {
+            match param {
+                syn::GenericParam::Type(type_param) => type_param.ident.to_string(),
+                syn::GenericParam::Lifetime(lifetime_param) => format!("'{}", lifetime_param.lifetime.ident),
+                syn::GenericParam::Const(const_param) => const_param.ident.to_string(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn extract_type_name(ty: &syn::Type) -> String {
@@ -1602,5 +1921,101 @@ mod tests {
         assert!(result.contains("pub fn complex_type_bounds"));
         assert!(result.contains("T: Clone + Send"));
         assert!(result.contains("U: T + Debug"));
+    }
+
+    #[test]
+    fn test_format_use_tree_simple() {
+        // Test simple name
+        let use_tree: syn::UseTree = syn::parse_str("HashMap").unwrap();
+        let result = format_use_tree(&use_tree);
+        assert_eq!(result, "HashMap");
+    }
+
+    #[test]
+    fn test_format_use_tree_path() {
+        // Test path
+        let use_tree: syn::UseTree = syn::parse_str("std::collections::HashMap").unwrap();
+        let result = format_use_tree(&use_tree);
+        assert_eq!(result, "std::collections::HashMap");
+    }
+
+    #[test]
+    fn test_format_use_tree_rename() {
+        // Test rename (as)
+        let use_tree: syn::UseTree = syn::parse_str("Vec as SimpleVec").unwrap();
+        let result = format_use_tree(&use_tree);
+        assert_eq!(result, "Vec as SimpleVec");
+    }
+
+    #[test]
+    fn test_format_use_tree_glob() {
+        // Test glob (*)
+        let use_tree: syn::UseTree = syn::parse_str("*").unwrap();
+        let result = format_use_tree(&use_tree);
+        assert_eq!(result, "*");
+    }
+
+    #[test]
+    fn test_format_use_tree_group() {
+        // Test group ({})
+        let use_tree: syn::UseTree = syn::parse_str("{HashMap, BTreeMap}").unwrap();
+        let result = format_use_tree(&use_tree);
+        assert_eq!(result, "{HashMap, BTreeMap}");
+    }
+
+    #[test]
+    fn test_format_use_tree_complex() {
+        // Test complex path with rename
+        let use_tree: syn::UseTree = syn::parse_str("std::vec::Vec as SimpleVec").unwrap();
+        let result = format_use_tree(&use_tree);
+        assert_eq!(result, "std::vec::Vec as SimpleVec");
+    }
+
+    #[test]
+    fn test_format_generic_params_simple_types() {
+        // Test type parameters
+        let generics: syn::Generics = syn::parse_str("<T, U, V>").unwrap();
+        let result = format_generic_params_simple(&generics.params);
+        assert_eq!(result, "T, U, V");
+    }
+
+    #[test]
+    fn test_format_generic_params_simple_lifetimes() {
+        // Test lifetime parameters
+        let generics: syn::Generics = syn::parse_str("<'a, 'b, 'c>").unwrap();
+        let result = format_generic_params_simple(&generics.params);
+        assert_eq!(result, "'a, 'b, 'c");
+    }
+
+    #[test]
+    fn test_format_generic_params_simple_mixed() {
+        // Test mixed parameters
+        let generics: syn::Generics = syn::parse_str("<'a, T, 'b, U>").unwrap();
+        let result = format_generic_params_simple(&generics.params);
+        assert_eq!(result, "'a, T, 'b, U");
+    }
+
+    #[test]
+    fn test_format_generic_params_simple_const() {
+        // Test const parameters
+        let generics: syn::Generics = syn::parse_str("<const N: usize>").unwrap();
+        let result = format_generic_params_simple(&generics.params);
+        assert_eq!(result, "N");
+    }
+
+    #[test]
+    fn test_format_generic_params_simple_empty() {
+        // Test empty parameters
+        let generics: syn::Generics = syn::parse_str("").unwrap();
+        let result = format_generic_params_simple(&generics.params);
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn test_format_generic_params_simple_complex() {
+        // Test complex mixed parameters
+        let generics: syn::Generics = syn::parse_str("<'a, T, const N: usize, 'b, U>").unwrap();
+        let result = format_generic_params_simple(&generics.params);
+        assert_eq!(result, "'a, T, N, 'b, U");
     }
 }

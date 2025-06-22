@@ -36,6 +36,16 @@ fn test_basic_llms_txt_generation() {
     assert!(content.contains("pub static SIMPLE_STATIC"), "SIMPLE_STATIC not found in TOC");
     assert!(content.contains("pub type SimpleResult"), "SimpleResult not found in TOC");
     assert!(content.contains("pub mod simple_module"), "simple_module not found in TOC");
+    
+    // Test for the 6 new public item types
+    assert!(content.contains("pub use std::collections::HashMap"), "HashMap re-export not found in TOC");
+    assert!(content.contains("pub use std::vec::Vec as SimpleVec"), "SimpleVec alias not found in TOC");
+    assert!(content.contains("pub extern crate serde"), "extern crate serde not found in TOC");
+    assert!(content.contains("simple_macro!"), "simple_macro not found in TOC");
+    assert!(content.contains("pub union SimpleUnion"), "SimpleUnion not found in TOC");
+    assert!(content.contains("pub extern \"C\" fn external_c_function"), "external_c_function not found in TOC");
+    assert!(content.contains("pub trait CloneDebug"), "CloneDebug trait alias not found in TOC");
+    assert!(content.contains("pub trait StringIterator"), "StringIterator trait alias not found in TOC");
     assert!(content.contains("## README.md"), "README.md section not found");
     assert!(content.contains("## Cargo.toml"), "Cargo.toml section not found");
     assert!(content.contains("```toml"), "TOML code block not found");

@@ -2,6 +2,9 @@
 //! 
 //! This library contains basic Rust constructs for testing.
 
+// Example extern crate declaration
+pub extern crate serde;
+
 /// A simple struct
 #[derive(Debug, Clone)]
 pub struct SimpleStruct {
@@ -68,3 +71,44 @@ pub mod simple_module {
     /// A constant in the module
     pub const MODULE_CONSTANT: usize = 100;
 }
+
+// Re-export from std
+pub use std::collections::HashMap;
+
+// Re-export with alias
+pub use std::vec::Vec as SimpleVec;
+
+/// A public macro
+#[macro_export]
+macro_rules! simple_macro {
+    ($x:expr) => {
+        format!("Simple: {}", $x)
+    };
+}
+
+/// A public union (unsafe)
+#[repr(C)]
+pub union SimpleUnion {
+    pub int_val: i32,
+    pub float_val: f32,
+}
+
+/// FFI functions
+extern "C" {
+    /// An external C function
+    pub fn external_c_function(x: i32) -> i32;
+}
+
+/// A public extern C function
+#[no_mangle]
+pub extern "C" fn simple_c_function(x: i32) -> i32 {
+    x * 2
+}
+
+/// A trait alias for common traits
+pub trait CloneDebug<T> = Clone + std::fmt::Debug
+where
+    T: std::fmt::Display;
+
+/// A simple trait alias
+pub trait StringIterator = Iterator<Item = String>;

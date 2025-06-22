@@ -6,3 +6,5 @@ description = "A simple test project for cargo-llms-txt"
 authors = ["Test Author <test@example.com>"]
 
 [dependencies]
+# Example external crate for testing pub extern crate
+serde = "1.0"
