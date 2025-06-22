@@ -31,28 +31,29 @@ jobs:
           echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
       - name: Create Release
         id: create_release
-        run: |
-          gh release create ${{ steps.tag_version.outputs.TAG }} \
-            --title "${{ steps.tag_version.outputs.TAG }}" \
-            --notes "## cargo-llms-txt ${{ steps.tag_version.outputs.TAG }}
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ steps.tag_version.outputs.TAG }}
+          body: |
+            ## cargo-llms-txt ${{ steps.tag_version.outputs.TAG }}
             
             ### Installation
             
-            \`\`\`bash
+            ```bash
             cargo install cargo-llms-txt
-            \`\`\`
+            ```
             
             ### Usage
             
-            \`\`\`bash
+            ```bash
             cargo llms-txt
-            \`\`\`
+            ```
             
             ### What's Changed
             
-            See the [commit history](https://github.com/masinc/cargo-llms-txt/commits/${{ steps.tag_version.outputs.TAG }}) for detailed changes."
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            See the [commit history](https://github.com/masinc/cargo-llms-txt/commits/${{ steps.tag_version.outputs.TAG }}) for detailed changes.
+          draft: false
+          prerelease: false
 
   build-release:
     name: Build Release
@@ -101,13 +102,13 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.target }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
-      - name: Upload Release Asset
+      - name: Rename binary for upload
         run: |
-          gh release upload ${{ needs.create-release.outputs.tag }} \
-            "./target/${{ matrix.target }}/release/${{ matrix.artifact_name }}" \
-            --clobber
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          cp ./target/${{ matrix.target }}/release/${{ matrix.artifact_name }} ./${{ matrix.asset_name }}
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./${{ matrix.asset_name }}
 
   publish-crates:
     name: Publish to crates.io
