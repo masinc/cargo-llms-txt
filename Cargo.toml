@@ -1,6 +1,6 @@
 [package]
 name = "cargo-llms-txt"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Cargo subcommand to generate llms.txt and llms-full.txt from Rust projects"
 authors = ["masinc"]
