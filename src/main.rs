@@ -2,12 +2,12 @@ use anyhow::Result;
 use clap::Parser;
 use std::path::PathBuf;
 
+mod generator;
 mod project_info;
 mod visitors;
-mod generator;
 
+use generator::{generate_llms_full_txt, generate_llms_txt};
 use project_info::get_project_info;
-use generator::{generate_llms_txt, generate_llms_full_txt};
 
 #[derive(Parser)]
 #[command(name = "cargo-llms-txt")]
@@ -23,20 +23,20 @@ fn main() -> Result<()> {
     if args.len() > 1 && args[1] == "llms-txt" {
         args.remove(1);
     }
-    
+
     let args = Args::parse_from(args);
-    
+
     let project_root = &args.path;
-    
+
     // プロジェクト情報を取得
     let project_info = get_project_info(project_root)?;
-    
+
     // llms.txt を生成
     generate_llms_txt(project_root, &project_info)?;
-    
+
     // llms-full.txt を生成
     generate_llms_full_txt(project_root, &project_info)?;
-    
+
     println!("Generated llms.txt and llms-full.txt");
     Ok(())
 }

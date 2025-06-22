@@ -47,7 +47,7 @@ struct CargoToml {
 pub fn parse_project_info(content: &str) -> Result<ProjectInfo> {
     let mut info = ProjectInfo::default();
     let cargo_toml: CargoToml = toml::from_str(content)?;
-        
+
     if let Some(package) = cargo_toml.package {
         info.name = package.name;
         info.description = package.description;
@@ -56,7 +56,7 @@ pub fn parse_project_info(content: &str) -> Result<ProjectInfo> {
         info.repository = package.repository;
         info.homepage = package.homepage;
         info.keywords = package.keywords;
-        
+
         // authorsを文字列に変換
         if let Some(authors) = package.authors {
             if !authors.is_empty() {
@@ -64,7 +64,7 @@ pub fn parse_project_info(content: &str) -> Result<ProjectInfo> {
             }
         }
     }
-        
+
     // dependenciesを解析
     if let Some(deps) = cargo_toml.dependencies {
         let mut dependency_infos = Vec::new();
@@ -74,7 +74,7 @@ pub fn parse_project_info(content: &str) -> Result<ProjectInfo> {
                 version: None,
                 features: None,
             };
-            
+
             match value {
                 toml::Value::String(version) => {
                     dep_info.version = Some(version);
@@ -107,20 +107,20 @@ pub fn parse_project_info(content: &str) -> Result<ProjectInfo> {
             info.dependencies = Some(dependency_infos);
         }
     }
-    
+
     // featuresを解析
     if let Some(features) = cargo_toml.features {
         if !features.is_empty() {
             info.features = Some(features);
         }
     }
-    
+
     Ok(info)
 }
 
 pub fn get_project_info(project_root: &Path) -> Result<ProjectInfo> {
     let cargo_toml_path = project_root.join("Cargo.toml");
-    
+
     if cargo_toml_path.exists() {
         let content = fs::read_to_string(&cargo_toml_path)?;
         parse_project_info(&content)
@@ -128,7 +128,6 @@ pub fn get_project_info(project_root: &Path) -> Result<ProjectInfo> {
         Ok(ProjectInfo::default())
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -150,16 +149,28 @@ keywords = ["test", "cli"]
 [dependencies]
 serde = "1.0"
 "#;
-        
+
         let info = parse_project_info(content).unwrap();
-        
+
         assert_eq!(info.version, Some("1.0.0".to_string()));
         assert_eq!(info.description, Some("A test project".to_string()));
-        assert_eq!(info.authors, Some("Test Author <test@example.com>".to_string()));
+        assert_eq!(
+            info.authors,
+            Some("Test Author <test@example.com>".to_string())
+        );
         assert_eq!(info.license, Some("MIT".to_string()));
-        assert_eq!(info.repository, Some("https://github.com/test/test-project".to_string()));
-        assert_eq!(info.homepage, Some("https://test-project.example.com".to_string()));
-        assert_eq!(info.keywords, Some(vec!["test".to_string(), "cli".to_string()]));
+        assert_eq!(
+            info.repository,
+            Some("https://github.com/test/test-project".to_string())
+        );
+        assert_eq!(
+            info.homepage,
+            Some("https://test-project.example.com".to_string())
+        );
+        assert_eq!(
+            info.keywords,
+            Some(vec!["test".to_string(), "cli".to_string()])
+        );
     }
 
     #[test]
@@ -174,23 +185,26 @@ serde = "1.0"
 clap = { version = "4.0", features = ["derive"] }
 tokio = { version = "1.0", features = ["full", "rt-multi-thread"] }
 "#;
-        
+
         let info = parse_project_info(content).unwrap();
-        
+
         let deps = info.dependencies.unwrap();
         assert_eq!(deps.len(), 3);
-        
+
         let serde_dep = deps.iter().find(|d| d.name == "serde").unwrap();
         assert_eq!(serde_dep.version, Some("1.0".to_string()));
         assert_eq!(serde_dep.features, None);
-        
+
         let clap_dep = deps.iter().find(|d| d.name == "clap").unwrap();
         assert_eq!(clap_dep.version, Some("4.0".to_string()));
         assert_eq!(clap_dep.features, Some(vec!["derive".to_string()]));
-        
+
         let tokio_dep = deps.iter().find(|d| d.name == "tokio").unwrap();
         assert_eq!(tokio_dep.version, Some("1.0".to_string()));
-        assert_eq!(tokio_dep.features, Some(vec!["full".to_string(), "rt-multi-thread".to_string()]));
+        assert_eq!(
+            tokio_dep.features,
+            Some(vec!["full".to_string(), "rt-multi-thread".to_string()])
+        );
     }
 
     #[test]
@@ -205,9 +219,9 @@ default = ["std"]
 std = []
 serde = ["dep:serde"]
 "#;
-        
+
         let info = parse_project_info(content).unwrap();
-        
+
         let features = info.features.unwrap();
         assert_eq!(features.len(), 3);
         assert_eq!(features.get("default"), Some(&vec!["std".to_string()]));
@@ -223,10 +237,13 @@ name = "test-project"
 version = "1.0.0"
 authors = ["Author One <one@example.com>", "Author Two <two@example.com>"]
 "#;
-        
+
         let info = parse_project_info(content).unwrap();
-        
-        assert_eq!(info.authors, Some("Author One <one@example.com>, Author Two <two@example.com>".to_string()));
+
+        assert_eq!(
+            info.authors,
+            Some("Author One <one@example.com>, Author Two <two@example.com>".to_string())
+        );
     }
 
     #[test]
@@ -235,9 +252,9 @@ authors = ["Author One <one@example.com>", "Author Two <two@example.com>"]
 [dependencies]
 serde = "1.0"
 "#;
-        
+
         let info = parse_project_info(content).unwrap();
-        
+
         assert_eq!(info.version, None);
         assert_eq!(info.description, None);
         assert_eq!(info.authors, None);
@@ -248,9 +265,8 @@ serde = "1.0"
     #[test]
     fn test_parse_project_info_invalid_toml() {
         let content = "this is not valid toml";
-        
+
         let result = parse_project_info(content);
         assert!(result.is_err());
     }
-
 }

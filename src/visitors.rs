@@ -1,4 +1,8 @@
-use syn::{visit::Visit, ItemFn, ItemMod, ItemStruct, ItemEnum, ItemTrait, ItemConst, ItemStatic, ItemType, ItemImpl, ItemUse, ItemMacro, ItemExternCrate, ItemForeignMod, ItemUnion, ItemTraitAlias, Visibility};
+use syn::{
+    visit::Visit, ItemConst, ItemEnum, ItemExternCrate, ItemFn, ItemForeignMod, ItemImpl,
+    ItemMacro, ItemMod, ItemStatic, ItemStruct, ItemTrait, ItemTraitAlias, ItemType, ItemUnion,
+    ItemUse, Visibility,
+};
 
 pub struct TocVisitor<'a> {
     pub items: &'a mut Vec<String>,
@@ -13,10 +17,11 @@ impl<'a> Visit<'_> for TocVisitor<'a> {
             } else {
                 format!("{}::", self.current_mod.join("::"))
             };
-            self.items.push(format!("pub fn {}{}", mod_path, node.sig.ident));
+            self.items
+                .push(format!("pub fn {}{}", mod_path, node.sig.ident));
         }
     }
-    
+
     fn visit_item_struct(&mut self, node: &ItemStruct) {
         if matches!(node.vis, Visibility::Public(_)) {
             let mod_path = if self.current_mod.is_empty() {
@@ -24,10 +29,11 @@ impl<'a> Visit<'_> for TocVisitor<'a> {
             } else {
                 format!("{}::", self.current_mod.join("::"))
             };
-            self.items.push(format!("pub struct {}{}", mod_path, node.ident));
+            self.items
+                .push(format!("pub struct {}{}", mod_path, node.ident));
         }
     }
-    
+
     fn visit_item_enum(&mut self, node: &ItemEnum) {
         if matches!(node.vis, Visibility::Public(_)) {
             let mod_path = if self.current_mod.is_empty() {
@@ -35,10 +41,11 @@ impl<'a> Visit<'_> for TocVisitor<'a> {
             } else {
                 format!("{}::", self.current_mod.join("::"))
             };
-            self.items.push(format!("pub enum {}{}", mod_path, node.ident));
+            self.items
+                .push(format!("pub enum {}{}", mod_path, node.ident));
         }
     }
-    
+
     fn visit_item_trait(&mut self, node: &ItemTrait) {
         if matches!(node.vis, Visibility::Public(_)) {
             let mod_path = if self.current_mod.is_empty() {
@@ -46,10 +53,11 @@ impl<'a> Visit<'_> for TocVisitor<'a> {
             } else {
                 format!("{}::", self.current_mod.join("::"))
             };
-            self.items.push(format!("pub trait {}{}", mod_path, node.ident));
+            self.items
+                .push(format!("pub trait {}{}", mod_path, node.ident));
         }
     }
-    
+
     fn visit_item_mod(&mut self, node: &ItemMod) {
         if matches!(node.vis, Visibility::Public(_)) {
             let mod_path = if self.current_mod.is_empty() {
@@ -57,9 +65,10 @@ impl<'a> Visit<'_> for TocVisitor<'a> {
             } else {
                 format!("{}::", self.current_mod.join("::"))
             };
-            self.items.push(format!("pub mod {}{}", mod_path, node.ident));
+            self.items
+                .push(format!("pub mod {}{}", mod_path, node.ident));
         }
-        
+
         if let Some((_, items)) = &node.content {
             self.current_mod.push(node.ident.to_string());
             for item in items {
@@ -68,7 +77,7 @@ impl<'a> Visit<'_> for TocVisitor<'a> {
             self.current_mod.pop();
         }
     }
-    
+
     fn visit_item_const(&mut self, node: &ItemConst) {
         if matches!(node.vis, Visibility::Public(_)) {
             let mod_path = if self.current_mod.is_empty() {
@@ -76,10 +85,11 @@ impl<'a> Visit<'_> for TocVisitor<'a> {
             } else {
                 format!("{}::", self.current_mod.join("::"))
             };
-            self.items.push(format!("pub const {}{}", mod_path, node.ident));
+            self.items
+                .push(format!("pub const {}{}", mod_path, node.ident));
         }
     }
-    
+
     fn visit_item_static(&mut self, node: &ItemStatic) {
         if matches!(node.vis, Visibility::Public(_)) {
             let mod_path = if self.current_mod.is_empty() {
@@ -87,10 +97,11 @@ impl<'a> Visit<'_> for TocVisitor<'a> {
             } else {
                 format!("{}::", self.current_mod.join("::"))
             };
-            self.items.push(format!("pub static {}{}", mod_path, node.ident));
+            self.items
+                .push(format!("pub static {}{}", mod_path, node.ident));
         }
     }
-    
+
     fn visit_item_type(&mut self, node: &ItemType) {
         if matches!(node.vis, Visibility::Public(_)) {
             let mod_path = if self.current_mod.is_empty() {
@@ -98,41 +109,46 @@ impl<'a> Visit<'_> for TocVisitor<'a> {
             } else {
                 format!("{}::", self.current_mod.join("::"))
             };
-            self.items.push(format!("pub type {}{}", mod_path, node.ident));
+            self.items
+                .push(format!("pub type {}{}", mod_path, node.ident));
         }
     }
-    
+
     fn visit_item_impl(&mut self, node: &syn::ItemImpl) {
         // 実装対象の型名を取得
         let impl_type = match &*node.self_ty {
-            syn::Type::Path(type_path) => {
-                type_path.path.segments.iter()
-                    .map(|s| s.ident.to_string())
-                    .collect::<Vec<_>>()
-                    .join("::")
-            }
+            syn::Type::Path(type_path) => type_path
+                .path
+                .segments
+                .iter()
+                .map(|s| s.ident.to_string())
+                .collect::<Vec<_>>()
+                .join("::"),
             _ => "Unknown".to_string(),
         };
-        
+
         let mod_path = if self.current_mod.is_empty() {
             String::new()
         } else {
             format!("{}::", self.current_mod.join("::"))
         };
-        
+
         // トレイト実装かどうか
         if let Some((_, trait_path, _)) = &node.trait_ {
-            let trait_name = trait_path.segments.iter()
+            let trait_name = trait_path
+                .segments
+                .iter()
                 .map(|s| s.ident.to_string())
                 .collect::<Vec<_>>()
                 .join("::");
-            
-            self.items.push(format!("impl {} for {}{}", trait_name, mod_path, impl_type));
+
+            self.items
+                .push(format!("impl {} for {}{}", trait_name, mod_path, impl_type));
         } else {
             self.items.push(format!("impl {}{}", mod_path, impl_type));
         }
     }
-    
+
     fn visit_item_use(&mut self, node: &ItemUse) {
         if matches!(node.vis, Visibility::Public(_)) {
             let mod_path = if self.current_mod.is_empty() {
@@ -144,7 +160,7 @@ impl<'a> Visit<'_> for TocVisitor<'a> {
             self.items.push(format!("pub use {}{}", mod_path, use_tree));
         }
     }
-    
+
     fn visit_item_macro(&mut self, node: &ItemMacro) {
         // macro_rules! マクロの場合
         if let Some(ident) = &node.ident {
@@ -156,7 +172,7 @@ impl<'a> Visit<'_> for TocVisitor<'a> {
             self.items.push(format!("{}{}!", mod_path, ident));
         }
     }
-    
+
     fn visit_item_extern_crate(&mut self, node: &ItemExternCrate) {
         if matches!(node.vis, Visibility::Public(_)) {
             let mod_path = if self.current_mod.is_empty() {
@@ -164,10 +180,11 @@ impl<'a> Visit<'_> for TocVisitor<'a> {
             } else {
                 format!("{}::", self.current_mod.join("::"))
             };
-            self.items.push(format!("pub extern crate {}{}", mod_path, node.ident));
+            self.items
+                .push(format!("pub extern crate {}{}", mod_path, node.ident));
         }
     }
-    
+
     fn visit_item_foreign_mod(&mut self, node: &ItemForeignMod) {
         for item in &node.items {
             if let syn::ForeignItem::Fn(foreign_fn) = item {
@@ -177,13 +194,21 @@ impl<'a> Visit<'_> for TocVisitor<'a> {
                     } else {
                         format!("{}::", self.current_mod.join("::"))
                     };
-                    let abi = node.abi.name.as_ref().map(|lit| lit.value()).unwrap_or("C".to_string());
-                    self.items.push(format!("pub extern \"{}\" fn {}{}", abi, mod_path, foreign_fn.sig.ident));
+                    let abi = node
+                        .abi
+                        .name
+                        .as_ref()
+                        .map(|lit| lit.value())
+                        .unwrap_or("C".to_string());
+                    self.items.push(format!(
+                        "pub extern \"{}\" fn {}{}",
+                        abi, mod_path, foreign_fn.sig.ident
+                    ));
                 }
             }
         }
     }
-    
+
     fn visit_item_union(&mut self, node: &ItemUnion) {
         if matches!(node.vis, Visibility::Public(_)) {
             let mod_path = if self.current_mod.is_empty() {
@@ -191,10 +216,11 @@ impl<'a> Visit<'_> for TocVisitor<'a> {
             } else {
                 format!("{}::", self.current_mod.join("::"))
             };
-            self.items.push(format!("pub union {}{}", mod_path, node.ident));
+            self.items
+                .push(format!("pub union {}{}", mod_path, node.ident));
         }
     }
-    
+
     fn visit_item_trait_alias(&mut self, node: &ItemTraitAlias) {
         if matches!(node.vis, Visibility::Public(_)) {
             let mod_path = if self.current_mod.is_empty() {
@@ -202,7 +228,8 @@ impl<'a> Visit<'_> for TocVisitor<'a> {
             } else {
                 format!("{}::", self.current_mod.join("::"))
             };
-            self.items.push(format!("pub trait {}{}", mod_path, node.ident));
+            self.items
+                .push(format!("pub trait {}{}", mod_path, node.ident));
         }
     }
 }
@@ -219,75 +246,75 @@ impl<'a> Visit<'_> for SummaryVisitor<'a> {
             self.types.push("functions".to_string());
         }
     }
-    
+
     fn visit_item_struct(&mut self, node: &ItemStruct) {
         if matches!(node.vis, Visibility::Public(_)) {
             *self.public_count += 1;
             self.types.push("structs".to_string());
         }
     }
-    
+
     fn visit_item_enum(&mut self, node: &ItemEnum) {
         if matches!(node.vis, Visibility::Public(_)) {
             *self.public_count += 1;
             self.types.push("enums".to_string());
         }
     }
-    
+
     fn visit_item_trait(&mut self, node: &ItemTrait) {
         if matches!(node.vis, Visibility::Public(_)) {
             *self.public_count += 1;
             self.types.push("traits".to_string());
         }
     }
-    
+
     fn visit_item_const(&mut self, node: &ItemConst) {
         if matches!(node.vis, Visibility::Public(_)) {
             *self.public_count += 1;
             self.types.push("constants".to_string());
         }
     }
-    
+
     fn visit_item_static(&mut self, node: &ItemStatic) {
         if matches!(node.vis, Visibility::Public(_)) {
             *self.public_count += 1;
             self.types.push("statics".to_string());
         }
     }
-    
+
     fn visit_item_type(&mut self, node: &ItemType) {
         if matches!(node.vis, Visibility::Public(_)) {
             *self.public_count += 1;
             self.types.push("type aliases".to_string());
         }
     }
-    
+
     fn visit_item_impl(&mut self, _node: &syn::ItemImpl) {
         *self.public_count += 1;
         self.types.push("implementations".to_string());
     }
-    
+
     fn visit_item_use(&mut self, node: &ItemUse) {
         if matches!(node.vis, Visibility::Public(_)) {
             *self.public_count += 1;
             self.types.push("re-exports".to_string());
         }
     }
-    
+
     fn visit_item_macro(&mut self, node: &ItemMacro) {
         if node.ident.is_some() {
             *self.public_count += 1;
             self.types.push("macros".to_string());
         }
     }
-    
+
     fn visit_item_extern_crate(&mut self, node: &ItemExternCrate) {
         if matches!(node.vis, Visibility::Public(_)) {
             *self.public_count += 1;
             self.types.push("extern crates".to_string());
         }
     }
-    
+
     fn visit_item_foreign_mod(&mut self, node: &ItemForeignMod) {
         for item in &node.items {
             if let syn::ForeignItem::Fn(foreign_fn) = item {
@@ -298,14 +325,14 @@ impl<'a> Visit<'_> for SummaryVisitor<'a> {
             }
         }
     }
-    
+
     fn visit_item_union(&mut self, node: &ItemUnion) {
         if matches!(node.vis, Visibility::Public(_)) {
             *self.public_count += 1;
             self.types.push("unions".to_string());
         }
     }
-    
+
     fn visit_item_trait_alias(&mut self, node: &ItemTraitAlias) {
         if matches!(node.vis, Visibility::Public(_)) {
             *self.public_count += 1;
@@ -327,28 +354,33 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
             } else {
                 format!("{}::", self.current_mod.join("::"))
             };
-            
-            self.content.push_str(&format!("### {}{}\n\n", mod_path, node.sig.ident));
-            
+
+            self.content
+                .push_str(&format!("### {}{}\n\n", mod_path, node.sig.ident));
+
             // クリーンな関数シグネチャを作成
             self.content.push_str("```rust\n");
-            
+
             // Check if this is an extern "C" function
-            let is_extern_c = node.sig.abi.as_ref()
+            let is_extern_c = node
+                .sig
+                .abi
+                .as_ref()
                 .and_then(|abi| abi.name.as_ref())
                 .map(|lit| lit.value() == "C")
                 .unwrap_or(false);
-                
+
             if is_extern_c {
                 // Format as #[no_mangle] pub extern "C" fn ...
-                let has_no_mangle = node.attrs.iter().any(|attr| {
-                    attr.path().is_ident("no_mangle")
-                });
-                
+                let has_no_mangle = node
+                    .attrs
+                    .iter()
+                    .any(|attr| attr.path().is_ident("no_mangle"));
+
                 if has_no_mangle {
                     self.content.push_str("#[no_mangle]\n");
                 }
-                
+
                 let sig = format_function_signature(&node.sig, true, "");
                 // Replace "pub fn" with "pub extern \"C\" fn"
                 let extern_sig = sig.replace("pub fn", "pub extern \"C\" fn");
@@ -357,14 +389,14 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
                 let sig = format_function_signature(&node.sig, true, "");
                 self.content.push_str(&sig);
             }
-            
+
             self.content.push_str("\n```\n\n");
-            
+
             // docsコメントを抽出
             self.extract_docs_for_item(&node.attrs);
         }
     }
-    
+
     fn visit_item_struct(&mut self, node: &ItemStruct) {
         if matches!(node.vis, Visibility::Public(_)) {
             let mod_path = if self.current_mod.is_empty() {
@@ -372,42 +404,48 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
             } else {
                 format!("{}::", self.current_mod.join("::"))
             };
-            
-            self.content.push_str(&format!("### {}{}\n\n", mod_path, node.ident));
-            
+
+            self.content
+                .push_str(&format!("### {}{}\n\n", mod_path, node.ident));
+
             self.content.push_str("```rust\n");
-            
+
             // derive属性を抽出
             let derives = extract_derives(&node.attrs);
             if !derives.is_empty() {
-                self.content.push_str(&format!("#[derive({})]\n", derives.join(", ")));
+                self.content
+                    .push_str(&format!("#[derive({})]\n", derives.join(", ")));
             }
-            
+
             // cfg属性を抽出
             let cfg_attrs = extract_cfg_attributes(&node.attrs);
             if !cfg_attrs.is_empty() {
-                self.content.push_str(&format!("#[cfg({})]\n", cfg_attrs.join(", ")));
+                self.content
+                    .push_str(&format!("#[cfg({})]\n", cfg_attrs.join(", ")));
             }
-            
+
             // 構造体定義のクリーンな表示
             let mut struct_def = format!("pub struct {}", node.ident);
-            
+
             // ジェネリクスを追加
             if !node.generics.params.is_empty() {
                 struct_def.push('<');
-                let generics: Vec<String> = node.generics.params.iter()
-                    .map(|p| {
-                        match p {
-                            syn::GenericParam::Type(tp) => tp.ident.to_string(),
-                            syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident),
-                            syn::GenericParam::Const(cp) => format!("const {}: {}", cp.ident, extract_type_name(&cp.ty)),
+                let generics: Vec<String> = node
+                    .generics
+                    .params
+                    .iter()
+                    .map(|p| match p {
+                        syn::GenericParam::Type(tp) => tp.ident.to_string(),
+                        syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident),
+                        syn::GenericParam::Const(cp) => {
+                            format!("const {}: {}", cp.ident, extract_type_name(&cp.ty))
                         }
                     })
                     .collect();
                 struct_def.push_str(&generics.join(", "));
                 struct_def.push('>');
             }
-            
+
             // フィールドを表示
             match &node.fields {
                 syn::Fields::Named(fields) => {
@@ -415,7 +453,11 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
                     for field in &fields.named {
                         if let Some(ident) = &field.ident {
                             if matches!(field.vis, Visibility::Public(_)) {
-                                struct_def.push_str(&format!("    pub {}: {},\n", ident, extract_type_name(&field.ty)));
+                                struct_def.push_str(&format!(
+                                    "    pub {}: {},\n",
+                                    ident,
+                                    extract_type_name(&field.ty)
+                                ));
                             }
                         }
                     }
@@ -423,7 +465,8 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
                 }
                 syn::Fields::Unnamed(fields) => {
                     struct_def.push('(');
-                    let field_types: Vec<String> = fields.unnamed
+                    let field_types: Vec<String> = fields
+                        .unnamed
                         .iter()
                         .filter(|f| matches!(f.vis, Visibility::Public(_)))
                         .map(|f| format!("pub {}", extract_type_name(&f.ty)))
@@ -435,14 +478,14 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
                     struct_def.push(';');
                 }
             }
-            
+
             self.content.push_str(&struct_def);
             self.content.push_str("\n```\n\n");
-            
+
             self.extract_docs_for_item(&node.attrs);
         }
     }
-    
+
     fn visit_item_enum(&mut self, node: &ItemEnum) {
         if matches!(node.vis, Visibility::Public(_)) {
             let mod_path = if self.current_mod.is_empty() {
@@ -450,63 +493,79 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
             } else {
                 format!("{}::", self.current_mod.join("::"))
             };
-            
-            self.content.push_str(&format!("### {}{}\n\n", mod_path, node.ident));
-            
+
+            self.content
+                .push_str(&format!("### {}{}\n\n", mod_path, node.ident));
+
             self.content.push_str("```rust\n");
-            
+
             // derive属性を抽出
             let derives = extract_derives(&node.attrs);
             if !derives.is_empty() {
-                self.content.push_str(&format!("#[derive({})]\n", derives.join(", ")));
+                self.content
+                    .push_str(&format!("#[derive({})]\n", derives.join(", ")));
             }
-            
+
             // cfg属性を抽出
             let cfg_attrs = extract_cfg_attributes(&node.attrs);
             if !cfg_attrs.is_empty() {
-                self.content.push_str(&format!("#[cfg({})]\n", cfg_attrs.join(", ")));
+                self.content
+                    .push_str(&format!("#[cfg({})]\n", cfg_attrs.join(", ")));
             }
-            
+
             // 列挙型定義のクリーンな表示
             let mut enum_def = format!("pub enum {}", node.ident);
-            
+
             // ジェネリクスを追加
             if !node.generics.params.is_empty() {
                 enum_def.push('<');
-                let generics: Vec<String> = node.generics.params.iter()
-                    .map(|p| {
-                        match p {
-                            syn::GenericParam::Type(tp) => tp.ident.to_string(),
-                            syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident),
-                            syn::GenericParam::Const(cp) => format!("const {}: {}", cp.ident, extract_type_name(&cp.ty)),
+                let generics: Vec<String> = node
+                    .generics
+                    .params
+                    .iter()
+                    .map(|p| match p {
+                        syn::GenericParam::Type(tp) => tp.ident.to_string(),
+                        syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident),
+                        syn::GenericParam::Const(cp) => {
+                            format!("const {}: {}", cp.ident, extract_type_name(&cp.ty))
                         }
                     })
                     .collect();
                 enum_def.push_str(&generics.join(", "));
                 enum_def.push('>');
             }
-            
+
             enum_def.push_str(" {\n");
-            
+
             // バリアントを表示
             for variant in &node.variants {
                 let mut variant_str = format!("    {}", variant.ident);
-                
+
                 // cfg属性を抽出
                 let cfg_attrs = extract_cfg_attributes(&variant.attrs);
                 if !cfg_attrs.is_empty() {
-                    variant_str = format!("    #[cfg({})]\n    {}", cfg_attrs.join(", "), variant.ident);
+                    variant_str = format!(
+                        "    #[cfg({})]\n    {}",
+                        cfg_attrs.join(", "),
+                        variant.ident
+                    );
                 }
-                
+
                 // バリアントフィールドを表示
                 match &variant.fields {
                     syn::Fields::Named(fields) => {
                         variant_str.push_str(" {");
-                        let field_strs: Vec<String> = fields.named.iter()
+                        let field_strs: Vec<String> = fields
+                            .named
+                            .iter()
                             .filter_map(|f| {
                                 if let Some(ident) = &f.ident {
                                     if matches!(f.vis, syn::Visibility::Public(_)) {
-                                        Some(format!(" pub {}: {}", ident, extract_type_name(&f.ty)))
+                                        Some(format!(
+                                            " pub {}: {}",
+                                            ident,
+                                            extract_type_name(&f.ty)
+                                        ))
                                     } else {
                                         Some(format!(" {}: {}", ident, extract_type_name(&f.ty)))
                                     }
@@ -523,7 +582,9 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
                     }
                     syn::Fields::Unnamed(fields) => {
                         variant_str.push('(');
-                        let field_types: Vec<String> = fields.unnamed.iter()
+                        let field_types: Vec<String> = fields
+                            .unnamed
+                            .iter()
                             .map(|f| extract_type_name(&f.ty))
                             .collect();
                         if field_types.is_empty() || field_types.iter().all(|t| t == "Unknown") {
@@ -537,19 +598,19 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
                         // Unit variant, no additional fields
                     }
                 }
-                
+
                 enum_def.push_str(&format!("{},\n", variant_str));
             }
-            
+
             enum_def.push('}');
-            
+
             self.content.push_str(&enum_def);
             self.content.push_str("\n```\n\n");
-            
+
             self.extract_docs_for_item(&node.attrs);
         }
     }
-    
+
     fn visit_item_trait(&mut self, node: &ItemTrait) {
         if matches!(node.vis, Visibility::Public(_)) {
             let mod_path = if self.current_mod.is_empty() {
@@ -557,53 +618,57 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
             } else {
                 format!("{}::", self.current_mod.join("::"))
             };
-            
-            self.content.push_str(&format!("### {}{}\n\n", mod_path, node.ident));
-            
+
+            self.content
+                .push_str(&format!("### {}{}\n\n", mod_path, node.ident));
+
             self.content.push_str("```rust\n");
             // トレイト定義のクリーンな表示
             let mut trait_signature = format!("pub trait {}", node.ident);
-            
+
             // ジェネリクスを追加
             if !node.generics.params.is_empty() {
                 trait_signature.push('<');
-                let generics: Vec<String> = node.generics.params.iter()
-                    .map(|p| {
-                        match p {
-                            syn::GenericParam::Type(tp) => tp.ident.to_string(),
-                            syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident),
-                            syn::GenericParam::Const(cp) => format!("const {}: {}", cp.ident, extract_type_name(&cp.ty)),
+                let generics: Vec<String> = node
+                    .generics
+                    .params
+                    .iter()
+                    .map(|p| match p {
+                        syn::GenericParam::Type(tp) => tp.ident.to_string(),
+                        syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident),
+                        syn::GenericParam::Const(cp) => {
+                            format!("const {}: {}", cp.ident, extract_type_name(&cp.ty))
                         }
                     })
                     .collect();
                 trait_signature.push_str(&generics.join(", "));
                 trait_signature.push('>');
             }
-            
+
             // Super traitsを追加
             if !node.supertraits.is_empty() {
                 trait_signature.push_str(": ");
-                let supertraits: Vec<String> = node.supertraits
+                let supertraits: Vec<String> = node
+                    .supertraits
                     .iter()
-                    .map(|st| {
-                        match st {
-                            syn::TypeParamBound::Trait(trait_bound) => {
-                                trait_bound.path.segments.iter()
-                                    .map(|s| s.ident.to_string())
-                                    .collect::<Vec<_>>()
-                                    .join("::")
-                            }
-                            syn::TypeParamBound::Lifetime(lifetime) => lifetime.ident.to_string(),
-                            _ => "Unknown".to_string(),
-                        }
+                    .map(|st| match st {
+                        syn::TypeParamBound::Trait(trait_bound) => trait_bound
+                            .path
+                            .segments
+                            .iter()
+                            .map(|s| s.ident.to_string())
+                            .collect::<Vec<_>>()
+                            .join("::"),
+                        syn::TypeParamBound::Lifetime(lifetime) => lifetime.ident.to_string(),
+                        _ => "Unknown".to_string(),
                     })
                     .collect();
                 trait_signature.push_str(&supertraits.join(" + "));
             }
-            
+
             trait_signature.push_str(" {");
             self.content.push_str(&trait_signature);
-            
+
             // トレイトアイテムを完全なシグネチャで表示
             for item in &node.items {
                 match item {
@@ -617,18 +682,19 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
                     syn::TraitItem::Const(c) => {
                         // クリーンなconst定義
                         let type_str = extract_type_name(&c.ty);
-                        self.content.push_str(&format!("\n    const {}: {};", c.ident, type_str));
+                        self.content
+                            .push_str(&format!("\n    const {}: {};", c.ident, type_str));
                     }
                     _ => {}
                 }
             }
-            
+
             self.content.push_str("\n}\n```\n\n");
-            
+
             self.extract_docs_for_item(&node.attrs);
         }
     }
-    
+
     fn visit_item_const(&mut self, node: &ItemConst) {
         if matches!(node.vis, Visibility::Public(_)) {
             let mod_path = if self.current_mod.is_empty() {
@@ -636,9 +702,10 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
             } else {
                 format!("{}::", self.current_mod.join("::"))
             };
-            
-            self.content.push_str(&format!("### {}{}\n\n", mod_path, node.ident));
-            
+
+            self.content
+                .push_str(&format!("### {}{}\n\n", mod_path, node.ident));
+
             self.content.push_str("```rust\n");
             // クリーンなconst定義
             self.content.push_str(&format!(
@@ -647,11 +714,11 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
                 extract_type_name(&node.ty)
             ));
             self.content.push_str("\n```\n\n");
-            
+
             self.extract_docs_for_item(&node.attrs);
         }
     }
-    
+
     fn visit_item_static(&mut self, node: &ItemStatic) {
         if matches!(node.vis, Visibility::Public(_)) {
             let mod_path = if self.current_mod.is_empty() {
@@ -659,9 +726,10 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
             } else {
                 format!("{}::", self.current_mod.join("::"))
             };
-            
-            self.content.push_str(&format!("### {}{}\n\n", mod_path, node.ident));
-            
+
+            self.content
+                .push_str(&format!("### {}{}\n\n", mod_path, node.ident));
+
             self.content.push_str("```rust\n");
             // クリーンなstatic定義
             let mut static_def = String::new();
@@ -669,18 +737,14 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
             if matches!(node.mutability, syn::StaticMutability::Mut(_)) {
                 static_def.push_str("mut ");
             }
-            static_def.push_str(&format!(
-                "{}: {}",
-                node.ident,
-                extract_type_name(&node.ty)
-            ));
+            static_def.push_str(&format!("{}: {}", node.ident, extract_type_name(&node.ty)));
             self.content.push_str(&static_def);
             self.content.push_str("\n```\n\n");
-            
+
             self.extract_docs_for_item(&node.attrs);
         }
     }
-    
+
     fn visit_item_type(&mut self, node: &ItemType) {
         if matches!(node.vis, Visibility::Public(_)) {
             let mod_path = if self.current_mod.is_empty() {
@@ -688,29 +752,33 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
             } else {
                 format!("{}::", self.current_mod.join("::"))
             };
-            
-            self.content.push_str(&format!("### {}{}\n\n", mod_path, node.ident));
-            
+
+            self.content
+                .push_str(&format!("### {}{}\n\n", mod_path, node.ident));
+
             self.content.push_str("```rust\n");
             // クリーンなtype alias定義
             let mut type_def = format!("pub type {}", node.ident);
-            
+
             // ジェネリクスを追加
             if !node.generics.params.is_empty() {
-                let generics: Vec<String> = node.generics.params.iter()
-                    .map(|p| {
-                        match p {
-                            syn::GenericParam::Type(tp) => tp.ident.to_string(),
-                            syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident),
-                            syn::GenericParam::Const(cp) => format!("const {}: {}", cp.ident, extract_type_name(&cp.ty)),
+                let generics: Vec<String> = node
+                    .generics
+                    .params
+                    .iter()
+                    .map(|p| match p {
+                        syn::GenericParam::Type(tp) => tp.ident.to_string(),
+                        syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident),
+                        syn::GenericParam::Const(cp) => {
+                            format!("const {}: {}", cp.ident, extract_type_name(&cp.ty))
                         }
                     })
                     .collect();
                 type_def.push_str(&format!("<{}>", generics.join(", ")));
             }
-            
+
             type_def.push_str(&format!(" = {}", extract_type_name(&node.ty)));
-            
+
             // where句
             if let Some(where_clause) = &node.generics.where_clause {
                 if !where_clause.predicates.is_empty() {
@@ -718,55 +786,63 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
                     type_def.push_str(&extract_where_clause(where_clause));
                 }
             }
-            
+
             self.content.push_str(&type_def);
             self.content.push_str("\n```\n\n");
-            
+
             self.extract_docs_for_item(&node.attrs);
         }
     }
-    
+
     fn visit_item_impl(&mut self, node: &ItemImpl) {
         // 実装対象の型名を取得
         let impl_type = match &*node.self_ty {
-            syn::Type::Path(type_path) => {
-                type_path.path.segments.iter()
-                    .map(|s| s.ident.to_string())
-                    .collect::<Vec<_>>()
-                    .join("::")
-            }
+            syn::Type::Path(type_path) => type_path
+                .path
+                .segments
+                .iter()
+                .map(|s| s.ident.to_string())
+                .collect::<Vec<_>>()
+                .join("::"),
             _ => "Unknown".to_string(),
         };
-        
+
         let mod_path = if self.current_mod.is_empty() {
             String::new()
         } else {
             format!("{}::", self.current_mod.join("::"))
         };
-        
+
         // トレイト実装かどうか
         if let Some((_, trait_path, _)) = &node.trait_ {
             let trait_name = extract_path_with_generics(trait_path);
-            
-            self.content.push_str(&format!("### impl {} for {}{}\n\n", trait_name, mod_path, impl_type));
+
+            self.content.push_str(&format!(
+                "### impl {} for {}{}\n\n",
+                trait_name, mod_path, impl_type
+            ));
         } else {
-            self.content.push_str(&format!("### impl {}{}\n\n", mod_path, impl_type));
+            self.content
+                .push_str(&format!("### impl {}{}\n\n", mod_path, impl_type));
         }
-        
+
         self.content.push_str("```rust\n");
-        
+
         // impl シグネチャを構築
         let mut impl_sig = String::new();
-        
+
         // ジェネリクス
         if !node.generics.params.is_empty() {
             impl_sig.push_str("impl<");
-            let generics: Vec<String> = node.generics.params.iter()
-                .map(|p| {
-                    match p {
-                        syn::GenericParam::Type(tp) => tp.ident.to_string(),
-                        syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident),
-                        syn::GenericParam::Const(cp) => format!("const {}: {}", cp.ident, extract_type_name(&cp.ty)),
+            let generics: Vec<String> = node
+                .generics
+                .params
+                .iter()
+                .map(|p| match p {
+                    syn::GenericParam::Type(tp) => tp.ident.to_string(),
+                    syn::GenericParam::Lifetime(lp) => format!("'{}", lp.lifetime.ident),
+                    syn::GenericParam::Const(cp) => {
+                        format!("const {}: {}", cp.ident, extract_type_name(&cp.ty))
                     }
                 })
                 .collect();
@@ -775,18 +851,18 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
         } else {
             impl_sig.push_str("impl ");
         }
-        
+
         // トレイト実装の場合
         if let Some((_, trait_path, _)) = &node.trait_ {
             let trait_name = extract_path_with_generics(trait_path);
             impl_sig.push_str(&format!("{} for ", trait_name));
         }
-        
+
         impl_sig.push_str(&impl_type);
         impl_sig.push_str(" {");
-        
+
         self.content.push_str(&impl_sig);
-        
+
         // public メソッドを表示
         for item in &node.items {
             match item {
@@ -798,131 +874,145 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
                 }
                 syn::ImplItem::Const(const_item) => {
                     if matches!(const_item.vis, Visibility::Public(_)) {
-                        self.content.push_str(&format!("\n    pub const {}: Type;", const_item.ident));
+                        self.content
+                            .push_str(&format!("\n    pub const {}: Type;", const_item.ident));
                     }
                 }
                 syn::ImplItem::Type(type_item) => {
                     if matches!(type_item.vis, Visibility::Public(_)) {
-                        self.content.push_str(&format!("\n    pub type {};", type_item.ident));
+                        self.content
+                            .push_str(&format!("\n    pub type {};", type_item.ident));
                     }
                 }
                 _ => {}
             }
         }
-        
+
         self.content.push_str("\n}\n```\n\n");
-        
+
         // impl ブロックのdocsコメントがあれば抽出
         self.extract_docs_for_item(&node.attrs);
     }
-    
+
     fn visit_item_use(&mut self, node: &ItemUse) {
         if matches!(node.vis, Visibility::Public(_)) {
             let use_tree = format_use_tree(&node.tree);
-            
+
             self.content.push_str(&format!("### {}\n\n", use_tree));
             self.content.push_str("```rust\n");
             self.content.push_str(&format!("pub use {};\n", use_tree));
             self.content.push_str("```\n\n");
-            
+
             self.extract_docs_for_item(&node.attrs);
         }
     }
-    
+
     fn visit_item_macro(&mut self, node: &ItemMacro) {
         if let Some(ident) = &node.ident {
             self.content.push_str(&format!("### {}!\n\n", ident));
             self.content.push_str("```rust\n");
-            self.content.push_str(&format!("macro_rules! {} {{\n    // macro definition\n}}\n", ident));
+            self.content.push_str(&format!(
+                "macro_rules! {} {{\n    // macro definition\n}}\n",
+                ident
+            ));
             self.content.push_str("```\n\n");
-            
+
             self.extract_docs_for_item(&node.attrs);
         }
     }
-    
+
     fn visit_item_extern_crate(&mut self, node: &ItemExternCrate) {
         if matches!(node.vis, Visibility::Public(_)) {
-            self.content.push_str(&format!("### extern crate {}\n\n", node.ident));
+            self.content
+                .push_str(&format!("### extern crate {}\n\n", node.ident));
             self.content.push_str("```rust\n");
-            self.content.push_str(&format!("pub extern crate {};\n", node.ident));
+            self.content
+                .push_str(&format!("pub extern crate {};\n", node.ident));
             self.content.push_str("```\n\n");
-            
+
             self.extract_docs_for_item(&node.attrs);
         }
     }
-    
+
     fn visit_item_foreign_mod(&mut self, node: &ItemForeignMod) {
         for item in &node.items {
             if let syn::ForeignItem::Fn(foreign_fn) = item {
                 if matches!(foreign_fn.vis, Visibility::Public(_)) {
-                    let abi = node.abi.name.as_ref().map(|lit| lit.value()).unwrap_or("C".to_string());
-                    
-                    self.content.push_str(&format!("### {}\n\n", foreign_fn.sig.ident));
+                    let abi = node
+                        .abi
+                        .name
+                        .as_ref()
+                        .map(|lit| lit.value())
+                        .unwrap_or("C".to_string());
+
+                    self.content
+                        .push_str(&format!("### {}\n\n", foreign_fn.sig.ident));
                     self.content.push_str("```rust\n");
-                    
+
                     // Format as extern "ABI" { pub fn ... }
                     self.content.push_str(&format!("extern \"{}\" {{\n", abi));
                     let sig = format_function_signature(&foreign_fn.sig, true, "");
                     self.content.push_str(&format!("    {};\n", sig));
                     self.content.push_str("}\n");
                     self.content.push_str("```\n\n");
-                    
+
                     self.extract_docs_for_item(&foreign_fn.attrs);
                 }
             }
         }
     }
-    
+
     fn visit_item_union(&mut self, node: &ItemUnion) {
         if matches!(node.vis, Visibility::Public(_)) {
             self.content.push_str(&format!("### {}\n\n", node.ident));
             self.content.push_str("```rust\n");
-            
+
             // Extract and format attributes
             let attrs = extract_cfg_attributes(&node.attrs);
             if !attrs.is_empty() {
                 self.content.push_str(&format!("#[{}]\n", attrs.join(", ")));
             }
-            
+
             // Union header with generics
             let mut union_def = format!("pub union {}", node.ident);
             if !node.generics.params.is_empty() {
                 let generics = format_generic_params_simple(&node.generics.params);
                 union_def.push_str(&format!("<{}>", generics));
             }
-            
+
             self.content.push_str(&format!("{} {{\n", union_def));
-            
+
             // Union fields
             for field in &node.fields.named {
                 if let Some(ident) = &field.ident {
                     let type_str = extract_type_name(&field.ty);
-                    self.content.push_str(&format!("    pub {}: {},\n", ident, type_str));
+                    self.content
+                        .push_str(&format!("    pub {}: {},\n", ident, type_str));
                 }
             }
-            
+
             self.content.push_str("}\n```\n\n");
-            
+
             self.extract_docs_for_item(&node.attrs);
         }
     }
-    
+
     fn visit_item_trait_alias(&mut self, node: &ItemTraitAlias) {
         if matches!(node.vis, Visibility::Public(_)) {
             self.content.push_str(&format!("### {}\n\n", node.ident));
             self.content.push_str("```rust\n");
-            
+
             // Trait alias with generics
             let mut trait_alias = format!("pub trait {}", node.ident);
             if !node.generics.params.is_empty() {
                 let generics = format_generic_params_simple(&node.generics.params);
                 trait_alias.push_str(&format!("<{}>", generics));
             }
-            
+
             // Format bounds
             let bounds = format_trait_bounds(&node.bounds);
             trait_alias.push_str(&format!(" = {}", bounds));
-            
+
             // Add where clause if present
             if let Some(where_clause) = &node.generics.where_clause {
                 let where_str = extract_where_clause(where_clause);
@@ -930,31 +1020,33 @@ impl<'a> Visit<'_> for CompleteDocsVisitor<'a> {
                     trait_alias.push_str(&format!("\nwhere\n    {}", where_str));
                 }
             }
-            
+
             self.content.push_str(&format!("{};\n", trait_alias));
             self.content.push_str("```\n\n");
-            
+
             self.extract_docs_for_item(&node.attrs);
         }
     }
 }
 
 // Helper function for formatting trait bounds
-fn format_trait_bounds(bounds: &syn::punctuated::Punctuated<syn::TypeParamBound, syn::token::Plus>) -> String {
-    bounds.iter()
-        .map(|bound| {
-            match bound {
-                syn::TypeParamBound::Trait(trait_bound) => {
-                    trait_bound.path.segments.iter()
-                        .map(|segment| segment.ident.to_string())
-                        .collect::<Vec<_>>()
-                        .join("::")
-                }
-                syn::TypeParamBound::Lifetime(lifetime) => {
-                    format!("'{}", lifetime.ident)
-                }
-                _ => "Unknown".to_string(),
+fn format_trait_bounds(
+    bounds: &syn::punctuated::Punctuated<syn::TypeParamBound, syn::token::Plus>,
+) -> String {
+    bounds
+        .iter()
+        .map(|bound| match bound {
+            syn::TypeParamBound::Trait(trait_bound) => trait_bound
+                .path
+                .segments
+                .iter()
+                .map(|segment| segment.ident.to_string())
+                .collect::<Vec<_>>()
+                .join("::"),
+            syn::TypeParamBound::Lifetime(lifetime) => {
+                format!("'{}", lifetime.ident)
             }
+            _ => "Unknown".to_string(),
         })
         .collect::<Vec<_>>()
         .join(" + ")
@@ -972,23 +1064,24 @@ fn format_use_tree(tree: &syn::UseTree) -> String {
         }
         syn::UseTree::Glob(_) => "*".to_string(),
         syn::UseTree::Group(group) => {
-            let items: Vec<String> = group.items.iter()
-                .map(format_use_tree)
-                .collect();
+            let items: Vec<String> = group.items.iter().map(format_use_tree).collect();
             format!("{{{}}}", items.join(", "))
         }
     }
 }
 
 // Helper function for simple generic parameter formatting
-fn format_generic_params_simple(params: &syn::punctuated::Punctuated<syn::GenericParam, syn::token::Comma>) -> String {
-    params.iter()
-        .map(|param| {
-            match param {
-                syn::GenericParam::Type(type_param) => type_param.ident.to_string(),
-                syn::GenericParam::Lifetime(lifetime_param) => format!("'{}", lifetime_param.lifetime.ident),
-                syn::GenericParam::Const(const_param) => const_param.ident.to_string(),
+fn format_generic_params_simple(
+    params: &syn::punctuated::Punctuated<syn::GenericParam, syn::token::Comma>,
+) -> String {
+    params
+        .iter()
+        .map(|param| match param {
+            syn::GenericParam::Type(type_param) => type_param.ident.to_string(),
+            syn::GenericParam::Lifetime(lifetime_param) => {
+                format!("'{}", lifetime_param.lifetime.ident)
             }
+            syn::GenericParam::Const(const_param) => const_param.ident.to_string(),
         })
         .collect::<Vec<_>>()
         .join(", ")
@@ -996,38 +1089,39 @@ fn format_generic_params_simple(params: &syn::punctuated::Punctuated<syn::Generi
 
 fn extract_type_name(ty: &syn::Type) -> String {
     match ty {
-        syn::Type::Path(type_path) => {
-            type_path.path.segments.iter()
-                .map(|s| {
-                    let mut segment = s.ident.to_string();
-                    if !s.arguments.is_empty() {
-                        match &s.arguments {
-                            syn::PathArguments::AngleBracketed(args) => {
-                                segment.push('<');
-                                let arg_strs: Vec<String> = args.args.iter()
-                                    .map(|arg| {
-                                        match arg {
-                                            syn::GenericArgument::Type(ty) => extract_type_name(ty),
-                                            syn::GenericArgument::Lifetime(lt) => format!("'{}", lt.ident),
-                                            syn::GenericArgument::Const(_) => "Const".to_string(),
-                                            _ => "Unknown".to_string(),
-                                        }
-                                    })
-                                    .collect();
-                                segment.push_str(&arg_strs.join(", "));
-                                segment.push('>');
-                            }
-                            syn::PathArguments::Parenthesized(_) => {
-                                segment.push_str("(..)");
-                            }
-                            syn::PathArguments::None => {}
+        syn::Type::Path(type_path) => type_path
+            .path
+            .segments
+            .iter()
+            .map(|s| {
+                let mut segment = s.ident.to_string();
+                if !s.arguments.is_empty() {
+                    match &s.arguments {
+                        syn::PathArguments::AngleBracketed(args) => {
+                            segment.push('<');
+                            let arg_strs: Vec<String> = args
+                                .args
+                                .iter()
+                                .map(|arg| match arg {
+                                    syn::GenericArgument::Type(ty) => extract_type_name(ty),
+                                    syn::GenericArgument::Lifetime(lt) => format!("'{}", lt.ident),
+                                    syn::GenericArgument::Const(_) => "Const".to_string(),
+                                    _ => "Unknown".to_string(),
+                                })
+                                .collect();
+                            segment.push_str(&arg_strs.join(", "));
+                            segment.push('>');
                         }
+                        syn::PathArguments::Parenthesized(_) => {
+                            segment.push_str("(..)");
+                        }
+                        syn::PathArguments::None => {}
                     }
-                    segment
-                })
-                .collect::<Vec<_>>()
-                .join("::")
-        }
+                }
+                segment
+            })
+            .collect::<Vec<_>>()
+            .join("::"),
         syn::Type::Reference(type_ref) => {
             let mut ref_str = "&".to_string();
             if let Some(lifetime) = &type_ref.lifetime {
@@ -1055,9 +1149,7 @@ fn extract_type_name(ty: &syn::Type) -> String {
             }
         }
         syn::Type::Tuple(type_tuple) => {
-            let elem_strs: Vec<String> = type_tuple.elems.iter()
-                .map(extract_type_name)
-                .collect();
+            let elem_strs: Vec<String> = type_tuple.elems.iter().map(extract_type_name).collect();
             format!("({})", elem_strs.join(", "))
         }
         syn::Type::ImplTrait(_) => "impl Trait".to_string(),
@@ -1073,13 +1165,14 @@ fn extract_pattern_name(pat: &syn::Pat) -> String {
         syn::Pat::Type(pat_type) => extract_pattern_name(&pat_type.pat),
         syn::Pat::Wild(_) => "_".to_string(),
         syn::Pat::Tuple(pat_tuple) => {
-            let names: Vec<String> = pat_tuple.elems.iter()
-                .map(extract_pattern_name)
-                .collect();
+            let names: Vec<String> = pat_tuple.elems.iter().map(extract_pattern_name).collect();
             format!("({})", names.join(", "))
         }
         syn::Pat::Struct(pat_struct) => {
-            let struct_name = pat_struct.path.segments.iter()
+            let struct_name = pat_struct
+                .path
+                .segments
+                .iter()
                 .map(|s| s.ident.to_string())
                 .collect::<Vec<_>>()
                 .join("::");
@@ -1089,102 +1182,112 @@ fn extract_pattern_name(pat: &syn::Pat) -> String {
     }
 }
 
-fn format_function_signature(sig: &syn::Signature, include_pub: bool, where_indent: &str) -> String {
+fn format_function_signature(
+    sig: &syn::Signature,
+    include_pub: bool,
+    where_indent: &str,
+) -> String {
     let mut result = String::new();
-    
+
     // pub fn or fn
     if include_pub {
         result.push_str("pub fn ");
     } else {
         result.push_str("fn ");
     }
-    
+
     // 関数名
     result.push_str(&sig.ident.to_string());
-    
+
     // ジェネリクス
     if !sig.generics.params.is_empty() {
         result.push('<');
-        let generics: Vec<String> = sig.generics.params.iter()
-            .map(|p| {
-                match p {
-                    syn::GenericParam::Type(tp) => {
-                        let mut type_str = tp.ident.to_string();
-                        if !tp.bounds.is_empty() {
-                            type_str.push_str(": ");
-                            let bounds: Vec<String> = tp.bounds.iter()
-                                .map(|bound| {
-                                    match bound {
-                                        syn::TypeParamBound::Trait(trait_bound) => {
-                                            trait_bound.path.segments.iter()
-                                                .map(|s| s.ident.to_string())
-                                                .collect::<Vec<_>>()
-                                                .join("::")
-                                        }
-                                        syn::TypeParamBound::Lifetime(lifetime) => {
-                                            format!("'{}", lifetime.ident)
-                                        }
-                                        _ => "Bound".to_string(),
-                                    }
-                                })
-                                .collect();
-                            type_str.push_str(&bounds.join(" + "));
-                        }
-                        type_str
+        let generics: Vec<String> = sig
+            .generics
+            .params
+            .iter()
+            .map(|p| match p {
+                syn::GenericParam::Type(tp) => {
+                    let mut type_str = tp.ident.to_string();
+                    if !tp.bounds.is_empty() {
+                        type_str.push_str(": ");
+                        let bounds: Vec<String> = tp
+                            .bounds
+                            .iter()
+                            .map(|bound| match bound {
+                                syn::TypeParamBound::Trait(trait_bound) => trait_bound
+                                    .path
+                                    .segments
+                                    .iter()
+                                    .map(|s| s.ident.to_string())
+                                    .collect::<Vec<_>>()
+                                    .join("::"),
+                                syn::TypeParamBound::Lifetime(lifetime) => {
+                                    format!("'{}", lifetime.ident)
+                                }
+                                _ => "Bound".to_string(),
+                            })
+                            .collect();
+                        type_str.push_str(&bounds.join(" + "));
                     }
-                    syn::GenericParam::Lifetime(lp) => {
-                        let mut lifetime_str = format!("'{}", lp.lifetime.ident);
-                        if !lp.bounds.is_empty() {
-                            lifetime_str.push_str(": ");
-                            let bounds: Vec<String> = lp.bounds.iter()
-                                .map(|bound| format!("'{}", bound.ident))
-                                .collect();
-                            lifetime_str.push_str(&bounds.join(" + "));
-                        }
-                        lifetime_str
+                    type_str
+                }
+                syn::GenericParam::Lifetime(lp) => {
+                    let mut lifetime_str = format!("'{}", lp.lifetime.ident);
+                    if !lp.bounds.is_empty() {
+                        lifetime_str.push_str(": ");
+                        let bounds: Vec<String> = lp
+                            .bounds
+                            .iter()
+                            .map(|bound| format!("'{}", bound.ident))
+                            .collect();
+                        lifetime_str.push_str(&bounds.join(" + "));
                     }
-                    syn::GenericParam::Const(cp) => format!("const {}: {}", cp.ident, extract_type_name(&cp.ty)),
+                    lifetime_str
+                }
+                syn::GenericParam::Const(cp) => {
+                    format!("const {}: {}", cp.ident, extract_type_name(&cp.ty))
                 }
             })
             .collect();
         result.push_str(&generics.join(", "));
         result.push('>');
     }
-    
+
     // パラメータ
     result.push('(');
-    let params: Vec<String> = sig.inputs.iter()
-        .map(|input| {
-            match input {
-                syn::FnArg::Receiver(recv) => {
-                    let mut param = String::new();
-                    if recv.reference.is_some() {
-                        param.push('&');
-                        if recv.mutability.is_some() {
-                            param.push_str("mut ");
-                        }
+    let params: Vec<String> = sig
+        .inputs
+        .iter()
+        .map(|input| match input {
+            syn::FnArg::Receiver(recv) => {
+                let mut param = String::new();
+                if recv.reference.is_some() {
+                    param.push('&');
+                    if recv.mutability.is_some() {
+                        param.push_str("mut ");
                     }
-                    param.push_str("self");
-                    param
                 }
-                syn::FnArg::Typed(pat_type) => {
-                    let param_name = extract_pattern_name(&pat_type.pat);
-                    format!("{}: {}", param_name, extract_type_name(&pat_type.ty))
-                }
+                param.push_str("self");
+                param
+            }
+            syn::FnArg::Typed(pat_type) => {
+                let param_name = extract_pattern_name(&pat_type.pat);
+                format!("{}: {}", param_name, extract_type_name(&pat_type.ty))
             }
         })
         .collect();
-    
+
     // パラメータを1行にまとめて表示
     result.push_str(&params.join(", "));
     result.push(')');
-    
+
     // 戻り値型
     if let syn::ReturnType::Type(_, ty) = &sig.output {
         result.push_str(" -> ");
         result.push_str(&extract_type_name(ty));
     }
-    
+
     // where句
     if let Some(where_clause) = &sig.generics.where_clause {
         if !where_clause.predicates.is_empty() {
@@ -1192,63 +1295,69 @@ fn format_function_signature(sig: &syn::Signature, include_pub: bool, where_inde
             result.push_str(&extract_where_clause(where_clause));
         }
     }
-    
+
     result
 }
 
 fn extract_where_clause(where_clause: &syn::WhereClause) -> String {
-    let predicates: Vec<String> = where_clause.predicates.iter()
-        .map(|predicate| {
-            match predicate {
-                syn::WherePredicate::Type(type_pred) => {
-                    let bounded_ty = extract_type_name(&type_pred.bounded_ty);
-                    let bounds: Vec<String> = type_pred.bounds.iter()
-                        .map(|bound| {
-                            match bound {
-                                syn::TypeParamBound::Trait(trait_bound) => {
-                                    trait_bound.path.segments.iter()
-                                        .map(|s| s.ident.to_string())
-                                        .collect::<Vec<_>>()
-                                        .join("::")
-                                }
-                                syn::TypeParamBound::Lifetime(lifetime) => {
-                                    format!("'{}", lifetime.ident)
-                                }
-                                _ => "Bound".to_string(),
-                            }
-                        })
-                        .collect();
-                    format!("{}: {}", bounded_ty, bounds.join(" + "))
-                }
-                syn::WherePredicate::Lifetime(lifetime_pred) => {
-                    let lifetime = &lifetime_pred.lifetime;
-                    let bounds: Vec<String> = lifetime_pred.bounds.iter()
-                        .map(|bound| format!("'{}", bound.ident))
-                        .collect();
-                    if bounds.is_empty() {
-                        format!("'{}", lifetime.ident)
-                    } else {
-                        format!("'{}: {}", lifetime.ident, bounds.join(" + "))
-                    }
-                }
-                _ => "Where".to_string(),
+    let predicates: Vec<String> = where_clause
+        .predicates
+        .iter()
+        .map(|predicate| match predicate {
+            syn::WherePredicate::Type(type_pred) => {
+                let bounded_ty = extract_type_name(&type_pred.bounded_ty);
+                let bounds: Vec<String> = type_pred
+                    .bounds
+                    .iter()
+                    .map(|bound| match bound {
+                        syn::TypeParamBound::Trait(trait_bound) => trait_bound
+                            .path
+                            .segments
+                            .iter()
+                            .map(|s| s.ident.to_string())
+                            .collect::<Vec<_>>()
+                            .join("::"),
+                        syn::TypeParamBound::Lifetime(lifetime) => {
+                            format!("'{}", lifetime.ident)
+                        }
+                        _ => "Bound".to_string(),
+                    })
+                    .collect();
+                format!("{}: {}", bounded_ty, bounds.join(" + "))
             }
+            syn::WherePredicate::Lifetime(lifetime_pred) => {
+                let lifetime = &lifetime_pred.lifetime;
+                let bounds: Vec<String> = lifetime_pred
+                    .bounds
+                    .iter()
+                    .map(|bound| format!("'{}", bound.ident))
+                    .collect();
+                if bounds.is_empty() {
+                    format!("'{}", lifetime.ident)
+                } else {
+                    format!("'{}: {}", lifetime.ident, bounds.join(" + "))
+                }
+            }
+            _ => "Where".to_string(),
         })
         .collect();
-    
+
     predicates.join(",\n    ")
 }
 
 fn extract_path_with_generics(path: &syn::Path) -> String {
-    path.segments.iter()
+    path.segments
+        .iter()
         .map(|segment| {
             let mut seg_str = segment.ident.to_string();
-            
+
             // ジェネリクス引数があるかチェック
             if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
                 if !args.args.is_empty() {
                     seg_str.push('<');
-                    let generic_args: Vec<String> = args.args.iter()
+                    let generic_args: Vec<String> = args
+                        .args
+                        .iter()
                         .map(|arg| {
                             match arg {
                                 syn::GenericArgument::Type(ty) => extract_type_name(ty),
@@ -1256,26 +1365,29 @@ fn extract_path_with_generics(path: &syn::Path) -> String {
                                 syn::GenericArgument::Const(expr) => {
                                     // const式を文字列化するのは複雑なので、簡単な場合のみ対応
                                     match expr {
-                                        syn::Expr::Lit(lit) => {
-                                            match &lit.lit {
-                                                syn::Lit::Str(s) => format!("\"{}\"", s.value()),
-                                                syn::Lit::Int(i) => i.base10_digits().to_string(),
-                                                syn::Lit::Bool(b) => b.value.to_string(),
-                                                _ => "Const".to_string(),
-                                            }
-                                        }
-                                        syn::Expr::Path(path) => {
-                                            path.path.segments.iter()
-                                                .map(|s| s.ident.to_string())
-                                                .collect::<Vec<_>>()
-                                                .join("::")
-                                        }
+                                        syn::Expr::Lit(lit) => match &lit.lit {
+                                            syn::Lit::Str(s) => format!("\"{}\"", s.value()),
+                                            syn::Lit::Int(i) => i.base10_digits().to_string(),
+                                            syn::Lit::Bool(b) => b.value.to_string(),
+                                            _ => "Const".to_string(),
+                                        },
+                                        syn::Expr::Path(path) => path
+                                            .path
+                                            .segments
+                                            .iter()
+                                            .map(|s| s.ident.to_string())
+                                            .collect::<Vec<_>>()
+                                            .join("::"),
                                         _ => "Const".to_string(),
                                     }
                                 }
                                 syn::GenericArgument::AssocType(assoc_type) => {
-                                    format!("{} = {}", assoc_type.ident, extract_type_name(&assoc_type.ty))
-                                },
+                                    format!(
+                                        "{} = {}",
+                                        assoc_type.ident,
+                                        extract_type_name(&assoc_type.ty)
+                                    )
+                                }
                                 syn::GenericArgument::AssocConst(_) => "AssocConst".to_string(),
                                 syn::GenericArgument::Constraint(_) => "Constraint".to_string(),
                                 _ => "GenericArg".to_string(),
@@ -1286,7 +1398,7 @@ fn extract_path_with_generics(path: &syn::Path) -> String {
                     seg_str.push('>');
                 }
             }
-            
+
             seg_str
         })
         .collect::<Vec<_>>()
@@ -1295,16 +1407,16 @@ fn extract_path_with_generics(path: &syn::Path) -> String {
 
 fn extract_cfg_attributes(attrs: &[syn::Attribute]) -> Vec<String> {
     let mut cfg_attrs = Vec::new();
-    
+
     for attr in attrs {
         if attr.path().is_ident("cfg") {
             // syn v2のparse_nested_metaを使って正確に解析
             let mut cfg_parts = Vec::new();
-            
+
             let parse_result = attr.parse_nested_meta(|meta| {
                 if let Some(ident) = meta.path.get_ident() {
                     let ident_str = ident.to_string();
-                    
+
                     // 値がある場合（target_pointer_width = "64" など）
                     if meta.input.peek(syn::Token![=]) {
                         let _eq = meta.input.parse::<syn::Token![=]>()?;
@@ -1316,7 +1428,10 @@ fn extract_cfg_attributes(attrs: &[syn::Attribute]) -> Vec<String> {
                     }
                 } else {
                     // 複雑なパス（all, any など）
-                    let path_str = meta.path.segments.iter()
+                    let path_str = meta
+                        .path
+                        .segments
+                        .iter()
                         .map(|s| s.ident.to_string())
                         .collect::<Vec<_>>()
                         .join("::");
@@ -1324,26 +1439,26 @@ fn extract_cfg_attributes(attrs: &[syn::Attribute]) -> Vec<String> {
                 }
                 Ok(())
             });
-            
+
             // 解析に失敗した場合はフォールバック
             if parse_result.is_err() || cfg_parts.is_empty() {
                 if let syn::Meta::List(meta_list) = &attr.meta {
                     cfg_parts.push(meta_list.tokens.to_string());
                 }
             }
-            
+
             if !cfg_parts.is_empty() {
                 cfg_attrs.push(cfg_parts.join(", "));
             }
         }
     }
-    
+
     cfg_attrs
 }
 
 fn extract_derives(attrs: &[syn::Attribute]) -> Vec<String> {
     let mut derives = Vec::new();
-    
+
     for attr in attrs {
         if attr.path().is_ident("derive") {
             if let syn::Meta::List(meta_list) = &attr.meta {
@@ -1359,7 +1474,7 @@ fn extract_derives(attrs: &[syn::Attribute]) -> Vec<String> {
             }
         }
     }
-    
+
     derives
 }
 
@@ -1368,21 +1483,26 @@ impl<'a> CompleteDocsVisitor<'a> {
         for attr in attrs {
             if let Ok(meta) = attr.meta.require_name_value() {
                 if meta.path.is_ident("doc") {
-                    if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(lit_str), .. }) = &meta.value {
+                    if let syn::Expr::Lit(syn::ExprLit {
+                        lit: syn::Lit::Str(lit_str),
+                        ..
+                    }) = &meta.value
+                    {
                         let doc_content = lit_str.value();
                         let doc_content = doc_content.trim();
-                        
+
                         // docsコメント内の見出しレベルを調整
-                        let adjusted_content = if let Some(stripped) = doc_content.strip_prefix("# ") {
-                            format!("#### {}", stripped)
-                        } else if let Some(stripped) = doc_content.strip_prefix("## ") {
-                            format!("##### {}", stripped)
-                        } else if let Some(stripped) = doc_content.strip_prefix("### ") {
-                            format!("###### {}", stripped)
-                        } else {
-                            doc_content.to_string()
-                        };
-                        
+                        let adjusted_content =
+                            if let Some(stripped) = doc_content.strip_prefix("# ") {
+                                format!("#### {}", stripped)
+                            } else if let Some(stripped) = doc_content.strip_prefix("## ") {
+                                format!("##### {}", stripped)
+                            } else if let Some(stripped) = doc_content.strip_prefix("### ") {
+                                format!("###### {}", stripped)
+                            } else {
+                                doc_content.to_string()
+                            };
+
                         self.content.push_str(&adjusted_content);
                         self.content.push('\n');
                     }
@@ -1402,7 +1522,7 @@ mod tests {
     fn test_extract_pattern_name() {
         // Test different pattern types by constructing them manually
         use syn::{PatIdent, PatWild};
-        
+
         // Test identifier pattern
         let ident = syn::Ident::new("x", proc_macro2::Span::call_site());
         let pat_ident = PatIdent {
@@ -1467,7 +1587,7 @@ mod tests {
     fn test_extract_where_clause() {
         let code = "fn test<T>() where T: Clone + Send, T: 'static {}";
         let item: syn::ItemFn = syn::parse_str(code).unwrap();
-        
+
         if let Some(where_clause) = &item.sig.generics.where_clause {
             let result = extract_where_clause(where_clause);
             assert!(result.contains("T: Clone + Send"));
@@ -1484,7 +1604,7 @@ mod tests {
         "#;
         let item: syn::ItemFn = syn::parse_str(code).unwrap();
         let cfg_attrs = extract_cfg_attributes(&item.attrs);
-        
+
         assert_eq!(cfg_attrs.len(), 3);
         assert!(cfg_attrs.contains(&"feature = \"std\"".to_string()));
         assert!(cfg_attrs.contains(&"target_pointer_width = \"64\"".to_string()));
@@ -1497,16 +1617,16 @@ mod tests {
             pub fn public_function() {}
             fn private_function() {}
         "#;
-        
+
         let file: syn::File = syn::parse_str(code).unwrap();
         let mut items = Vec::new();
         let mut visitor = TocVisitor {
             items: &mut items,
             current_mod: Vec::new(),
         };
-        
+
         visitor.visit_file(&file);
-        
+
         assert_eq!(items.len(), 1);
         assert_eq!(items[0], "pub fn public_function");
     }
@@ -1517,16 +1637,16 @@ mod tests {
             pub struct PublicStruct;
             struct PrivateStruct;
         "#;
-        
+
         let file: syn::File = syn::parse_str(code).unwrap();
         let mut items = Vec::new();
         let mut visitor = TocVisitor {
             items: &mut items,
             current_mod: Vec::new(),
         };
-        
+
         visitor.visit_file(&file);
-        
+
         assert_eq!(items.len(), 1);
         assert_eq!(items[0], "pub struct PublicStruct");
     }
@@ -1542,16 +1662,16 @@ mod tests {
                 Variant,
             }
         "#;
-        
+
         let file: syn::File = syn::parse_str(code).unwrap();
         let mut items = Vec::new();
         let mut visitor = TocVisitor {
             items: &mut items,
             current_mod: Vec::new(),
         };
-        
+
         visitor.visit_file(&file);
-        
+
         assert_eq!(items.len(), 1);
         assert_eq!(items[0], "pub enum PublicEnum");
     }
@@ -1564,16 +1684,16 @@ mod tests {
                 pub struct StructInModule;
             }
         "#;
-        
+
         let file: syn::File = syn::parse_str(code).unwrap();
         let mut items = Vec::new();
         let mut visitor = TocVisitor {
             items: &mut items,
             current_mod: Vec::new(),
         };
-        
+
         visitor.visit_file(&file);
-        
+
         assert_eq!(items.len(), 3);
         assert_eq!(items[0], "pub mod submodule");
         assert_eq!(items[1], "pub fn submodule::function_in_module");
@@ -1593,18 +1713,18 @@ mod tests {
                 pub field: i32,
             }
         "#;
-        
+
         let file: syn::File = syn::parse_str(code).unwrap();
         let mut public_count = 0;
         let mut types = Vec::new();
-        
+
         let mut visitor = SummaryVisitor {
             public_count: &mut public_count,
             types: &mut types,
         };
-        
+
         visitor.visit_file(&file);
-        
+
         assert_eq!(public_count, 2);
         assert!(types.contains(&"functions".to_string()));
         assert!(types.contains(&"structs".to_string()));
@@ -1622,17 +1742,17 @@ mod tests {
                 param1
             }
         "#;
-        
+
         let file: syn::File = syn::parse_str(code).unwrap();
         let mut content = String::new();
-        
+
         let mut visitor = CompleteDocsVisitor {
             content: &mut content,
             current_mod: Vec::new(),
         };
-        
+
         visitor.visit_file(&file);
-        
+
         assert!(content.contains("generic_function<T, U>"));
         assert!(content.contains("param1: T"));
         assert!(content.contains("param2: U"));
@@ -1684,17 +1804,17 @@ mod tests {
                 ConditionalVariant,
             }
         "#;
-        
+
         let file: syn::File = syn::parse_str(code).unwrap();
         let mut content = String::new();
-        
+
         let mut visitor = CompleteDocsVisitor {
             content: &mut content,
             current_mod: Vec::new(),
         };
-        
+
         visitor.visit_file(&file);
-        
+
         assert!(content.contains("pub enum TestEnum"));
         assert!(content.contains("Unit"));
         assert!(content.contains("Tuple(String, i32)"));
@@ -1716,17 +1836,17 @@ mod tests {
                 fn private_method(&self) {}
             }
         "#;
-        
+
         let file: syn::File = syn::parse_str(code).unwrap();
         let mut content = String::new();
-        
+
         let mut visitor = CompleteDocsVisitor {
             content: &mut content,
             current_mod: Vec::new(),
         };
-        
+
         visitor.visit_file(&file);
-        
+
         assert!(content.contains("impl TestStruct"));
         assert!(content.contains("pub fn public_method"));
         assert!(content.contains("param: u32"));
@@ -1747,17 +1867,17 @@ mod tests {
                 }
             }
         "#;
-        
+
         let file: syn::File = syn::parse_str(code).unwrap();
         let mut content = String::new();
-        
+
         let mut visitor = CompleteDocsVisitor {
             content: &mut content,
             current_mod: Vec::new(),
         };
-        
+
         visitor.visit_file(&file);
-        
+
         // Should include trait generics in the impl declaration
         assert!(content.contains("impl serde::Deserialize"));
         assert!(content.contains("for MyStruct"));
@@ -1777,14 +1897,19 @@ mod tests {
         assert_eq!(result, "pub fn simple_function(x: i32) -> bool");
 
         // Test function with generics
-        let sig: syn::Signature = syn::parse_str("fn generic_function<T>(value: T) -> Option<T>").unwrap();
+        let sig: syn::Signature =
+            syn::parse_str("fn generic_function<T>(value: T) -> Option<T>").unwrap();
         let result = format_function_signature(&sig, false, "");
         assert_eq!(result, "fn generic_function<T>(value: T) -> Option<T>");
 
         // Test function with self parameter
-        let sig: syn::Signature = syn::parse_str("fn method(&self, param: String) -> Result<(), Error>").unwrap();
+        let sig: syn::Signature =
+            syn::parse_str("fn method(&self, param: String) -> Result<(), Error>").unwrap();
         let result = format_function_signature(&sig, false, "");
-        assert_eq!(result, "fn method(&self, param: String) -> Result<(), Error>");
+        assert_eq!(
+            result,
+            "fn method(&self, param: String) -> Result<(), Error>"
+        );
 
         // Test function with mutable self
         let sig: syn::Signature = syn::parse_str("fn mut_method(&mut self, x: i32)").unwrap();
@@ -1792,9 +1917,13 @@ mod tests {
         assert_eq!(result, "pub fn mut_method(&mut self, x: i32)");
 
         // Test function with multiple parameters
-        let sig: syn::Signature = syn::parse_str("fn multi_param(a: i32, b: &str, c: Vec<u8>) -> String").unwrap();
+        let sig: syn::Signature =
+            syn::parse_str("fn multi_param(a: i32, b: &str, c: Vec<u8>) -> String").unwrap();
         let result = format_function_signature(&sig, false, "");
-        assert_eq!(result, "fn multi_param(a: i32, b: &str, c: Vec<u8>) -> String");
+        assert_eq!(
+            result,
+            "fn multi_param(a: i32, b: &str, c: Vec<u8>) -> String"
+        );
 
         // Test function with no parameters
         let sig: syn::Signature = syn::parse_str("fn no_params() -> bool").unwrap();
@@ -1810,14 +1939,17 @@ mod tests {
     #[test]
     fn test_format_function_signature_with_where_clause() {
         // Test function with where clause
-        let sig: syn::Signature = syn::parse_str("fn with_where<T>(value: T) -> T where T: Clone").unwrap();
+        let sig: syn::Signature =
+            syn::parse_str("fn with_where<T>(value: T) -> T where T: Clone").unwrap();
         let result = format_function_signature(&sig, false, "    ");
         assert!(result.contains("fn with_where<T>(value: T) -> T"));
         assert!(result.contains("where"));
         assert!(result.contains("T: Clone"));
 
         // Test multiple where clauses
-        let sig: syn::Signature = syn::parse_str("fn complex_where<T, U>(t: T, u: U) -> (T, U) where T: Clone, U: Send").unwrap();
+        let sig: syn::Signature =
+            syn::parse_str("fn complex_where<T, U>(t: T, u: U) -> (T, U) where T: Clone, U: Send")
+                .unwrap();
         let result = format_function_signature(&sig, true, "");
         assert!(result.contains("pub fn complex_where<T, U>(t: T, u: U) -> (T, U)"));
         assert!(result.contains("where"));
@@ -1825,7 +1957,8 @@ mod tests {
         assert!(result.contains("U: Send"));
 
         // Test lifetime and const generics
-        let sig: syn::Signature = syn::parse_str("fn lifetime_generic<'a, T>(data: &'a T) -> &'a T where T: 'a").unwrap();
+        let sig: syn::Signature =
+            syn::parse_str("fn lifetime_generic<'a, T>(data: &'a T) -> &'a T where T: 'a").unwrap();
         let result = format_function_signature(&sig, false, "  ");
         assert!(result.contains("fn lifetime_generic<'a, T>(data: &'a T) -> &'a T"));
         assert!(result.contains("where"));
@@ -1835,16 +1968,23 @@ mod tests {
     #[test]
     fn test_format_function_signature_multiple_lifetimes() {
         // Test function with multiple lifetimes
-        let sig: syn::Signature = syn::parse_str("fn multiple_lifetimes<'a, 'b>(x: &'a str, y: &'b str) -> &'a str").unwrap();
+        let sig: syn::Signature =
+            syn::parse_str("fn multiple_lifetimes<'a, 'b>(x: &'a str, y: &'b str) -> &'a str")
+                .unwrap();
         let result = format_function_signature(&sig, false, "");
         assert!(result.contains("fn multiple_lifetimes<'a, 'b>(x: &'a str, y: &'b str) -> &'a str"));
 
         // Test with pub
         let result = format_function_signature(&sig, true, "");
-        assert!(result.contains("pub fn multiple_lifetimes<'a, 'b>(x: &'a str, y: &'b str) -> &'a str"));
+        assert!(
+            result.contains("pub fn multiple_lifetimes<'a, 'b>(x: &'a str, y: &'b str) -> &'a str")
+        );
 
         // Test function with multiple lifetimes and where clause
-        let sig: syn::Signature = syn::parse_str("fn complex_lifetimes<'a, 'b, T>(x: &'a T, y: &'b T) -> &'a T where 'b: 'a, T: Clone").unwrap();
+        let sig: syn::Signature = syn::parse_str(
+            "fn complex_lifetimes<'a, 'b, T>(x: &'a T, y: &'b T) -> &'a T where 'b: 'a, T: Clone",
+        )
+        .unwrap();
         let result = format_function_signature(&sig, false, "    ");
         assert!(result.contains("fn complex_lifetimes<'a, 'b, T>(x: &'a T, y: &'b T) -> &'a T"));
         assert!(result.contains("where"));
@@ -1857,7 +1997,8 @@ mod tests {
         assert!(result.contains("pub fn mut_multiple_lifetimes<'a, 'b>(&mut self, x: &'a mut String, y: &'b str) -> &'a String"));
 
         // Test with static lifetime
-        let sig: syn::Signature = syn::parse_str("fn with_static<'a>(x: &'a str, y: &'static str) -> &'a str").unwrap();
+        let sig: syn::Signature =
+            syn::parse_str("fn with_static<'a>(x: &'a str, y: &'static str) -> &'a str").unwrap();
         let result = format_function_signature(&sig, false, "");
         assert!(result.contains("fn with_static<'a>(x: &'a str, y: &'static str) -> &'a str"));
 
@@ -1874,7 +2015,10 @@ mod tests {
     #[test]
     fn test_format_function_signature_lifetime_bounds_in_generics() {
         // Test lifetime bounds in generic parameters
-        let sig: syn::Signature = syn::parse_str("fn lifetime_param_bounds<'a: 'b, 'b>(x: &'a str, y: &'b str) -> &'b str").unwrap();
+        let sig: syn::Signature = syn::parse_str(
+            "fn lifetime_param_bounds<'a: 'b, 'b>(x: &'a str, y: &'b str) -> &'b str",
+        )
+        .unwrap();
         let result = format_function_signature(&sig, false, "");
         assert!(result.contains("fn lifetime_param_bounds"));
         assert!(result.contains("'a: 'b"));
@@ -1882,7 +2026,10 @@ mod tests {
         assert!(result.contains("x: &'a str, y: &'b str"));
 
         // Test multiple lifetime bounds in generic parameters
-        let sig: syn::Signature = syn::parse_str("fn complex_lifetime_bounds<'a: 'b + 'c, 'b, 'c>(data: &'a str) -> &'a str").unwrap();
+        let sig: syn::Signature = syn::parse_str(
+            "fn complex_lifetime_bounds<'a: 'b + 'c, 'b, 'c>(data: &'a str) -> &'a str",
+        )
+        .unwrap();
         let result = format_function_signature(&sig, true, "");
         assert!(result.contains("pub fn complex_lifetime_bounds"));
         assert!(result.contains("'a: 'b + 'c"));
@@ -1890,7 +2037,10 @@ mod tests {
         assert!(result.contains("'c"));
 
         // Test combination of lifetime bounds in generics and where clause
-        let sig: syn::Signature = syn::parse_str("fn mixed_bounds<'a: 'b, 'b, T>(x: &'a T, y: &'b T) -> &'a T where T: Clone + 'a").unwrap();
+        let sig: syn::Signature = syn::parse_str(
+            "fn mixed_bounds<'a: 'b, 'b, T>(x: &'a T, y: &'b T) -> &'a T where T: Clone + 'a",
+        )
+        .unwrap();
         let result = format_function_signature(&sig, false, "    ");
         assert!(result.contains("fn mixed_bounds"));
         assert!(result.contains("'a: 'b"));
@@ -1900,7 +2050,8 @@ mod tests {
         assert!(result.contains("T: Clone + 'a"));
 
         // Test static lifetime bounds
-        let sig: syn::Signature = syn::parse_str("fn static_bounds<'a: 'static>(data: &'a str) -> &'a str").unwrap();
+        let sig: syn::Signature =
+            syn::parse_str("fn static_bounds<'a: 'static>(data: &'a str) -> &'a str").unwrap();
         let result = format_function_signature(&sig, false, "");
         assert!(result.contains("'a: 'static"));
     }
@@ -1908,15 +2059,19 @@ mod tests {
     #[test]
     fn test_format_function_signature_type_param_bounds() {
         // Test type parameter bounds like <A: B, B: C, C>
-        let sig: syn::Signature = syn::parse_str("fn type_bounds<A: B, B: C, C>(a: A, b: B, c: C) -> A").unwrap();
+        let sig: syn::Signature =
+            syn::parse_str("fn type_bounds<A: B, B: C, C>(a: A, b: B, c: C) -> A").unwrap();
         let result = format_function_signature(&sig, false, "");
         assert!(result.contains("fn type_bounds"));
         assert!(result.contains("A: B"));
         assert!(result.contains("B: C"));
         assert!(result.contains("C"));
-        
+
         // Test more complex type bounds
-        let sig: syn::Signature = syn::parse_str("fn complex_type_bounds<T: Clone + Send, U: T + Debug>(t: T, u: U) -> T").unwrap();
+        let sig: syn::Signature = syn::parse_str(
+            "fn complex_type_bounds<T: Clone + Send, U: T + Debug>(t: T, u: U) -> T",
+        )
+        .unwrap();
         let result = format_function_signature(&sig, true, "");
         assert!(result.contains("pub fn complex_type_bounds"));
         assert!(result.contains("T: Clone + Send"));
