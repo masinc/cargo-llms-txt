@@ -9,7 +9,7 @@ fn test_basic_llms_txt_generation() {
     // cargo-llms-txtを実行
     let output = Command::new(env!("CARGO_BIN_EXE_cargo-llms-txt"))
         .arg("--path")
-        .arg(&project_path)
+        .arg(project_path)
         .output()
         .expect("Failed to execute cargo-llms-txt");
 
@@ -125,7 +125,7 @@ fn test_llms_full_txt_generation() {
     // cargo-llms-txtを実行
     let output = Command::new(env!("CARGO_BIN_EXE_cargo-llms-txt"))
         .arg("--path")
-        .arg(&project_path)
+        .arg(project_path)
         .output()
         .expect("Failed to execute cargo-llms-txt");
 
@@ -176,7 +176,7 @@ fn test_project_with_dependencies() {
     // cargo-llms-txtを実行
     let output = Command::new(env!("CARGO_BIN_EXE_cargo-llms-txt"))
         .arg("--path")
-        .arg(&project_path)
+        .arg(project_path)
         .output()
         .expect("Failed to execute cargo-llms-txt");
 
